@@ -1,0 +1,4 @@
+typing
+fastapi[standard]
+psycopg2
+sqlalchemy
