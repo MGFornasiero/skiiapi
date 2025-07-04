@@ -47,7 +47,6 @@ def kihon(grade_id: int , sequenza: int):
     """
     query = f"""
     SELECT 
-        --inv.number,
         seq.seq_num,
         tx.movement ,
         CASE
@@ -75,7 +74,7 @@ def kihon(grade_id: int , sequenza: int):
     cur.close()
     conn.close()
     print(result)
-    res = {row[0]:[row[1],row[2],row[3],row[4]] for row in result}
+    res = {row[0]:{"movement":row[1],"tecnica":row[2],"Stand":row[3],"Target":row[4]} for row in result}
     grade = f"{grade_data[0]}° {grade_data[1]}"
     return {"grade": grade, "grade_id": grade_id, "sequenza_n":sequenza,"tecniche":res}
 
@@ -94,8 +93,8 @@ def kata(kata_id: int):
     conn.close()
     print(steps_result)
     print(tx_result)
-    res_steps = steps_result
-    res_tx = tx_result
+    res_steps = {step[2]:{ "id_sequence":step[0], "kata_id":step[1],  "posizione":step[3] ,"guardia":step[4]  , "facing":step[5] , "tecniche":step[6] , "embusen":step[7] , "kiai":step[8]} for step in  steps_result}
+    res_tx = [{"id_tx":tx[0] , "from_seq":tx[1] , "to_seq":tx[2] , "tempo":tx[3]  , "direction":tx[4]} for tx in tx_result]
     return {"kata_id": kata_id, "steps":res_steps , "transactions":res_tx}
 
 @app.get("/grade_inventory")
@@ -111,6 +110,9 @@ def grade_inventory():
 
 @app.get("/stand_inventory")
 def stand_inventory():
+    """
+    segnaposto per l'endpoint ma da metter bene
+    """
     conn = psycopg2.connect(uri)
     cur = conn.cursor()
     cur.execute("SELECT id_stand ,name ,description ,illustration_url ,notes FROM ski.stands;")
@@ -122,6 +124,9 @@ def stand_inventory():
 
 @app.get("/technics_inventory")
 def technics_inventory():
+    """
+    segnaposto per l'endpoint ma da metter bene
+    """
     conn = psycopg2.connect(uri)
     cur = conn.cursor()
     cur.execute("SELECT id_technic,waza ,name ,description ,notes ,resource_url FROM ski.technics;")
@@ -144,6 +149,9 @@ def technics_inventory():
 
 @app.get("/find_technics")
 def technics_inventory(query:str = ""):
+    """
+    segnaposto per l'endpoint ma decidere meglio l'implementazione
+    """
     query = f"""
     SELECT tech.id_technic
     , ranking_name
