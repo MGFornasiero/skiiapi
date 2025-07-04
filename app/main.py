@@ -16,7 +16,6 @@ from fastapi import FastAPI
 app = FastAPI()
 
 import psycopg2
-#uri = "postgresql://postgres:Gion.1982@10.35.144.3:5432/postgres"
 uri = os.environ['SKIURI']
 print(uri)
 
