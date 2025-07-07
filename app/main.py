@@ -2,16 +2,9 @@ from typing import Union
 import os
 from fastapi import FastAPI
 
-
-        
-#import sqlalchemy
-#from sqlalchemy import URL
-#from sqlalchemy import create_engine
-#from sqlalchemy.ext.declarative import declarative_base
-#from sqlalchemy.orm import sessionmaker
-#from sqlalchemy.dialects import postgresql
-#from sqlalchemy import select
-#from sqlalchemy.sql import text
+#####                       NOTE                        #####
+#    the connection is set using the env variable SKIURI    #
+#############################################################
 
 app = FastAPI()
 
@@ -35,10 +28,24 @@ def read_gradeid(gradetype:str ,grade: int):
     result = cur.fetchone()
     cur.close()
     conn.close()
-    print(result)
     grade_id = int(result[0])
-    print(grade_id)
     return {"grade": grade_id,}
+
+@app.get("/numberofkihon/{grade_id}")
+def read_kihonsequencedomain(grade_id: int ):
+    """
+    da compilare
+    """
+    conn = psycopg2.connect(uri)
+    cur = conn.cursor()
+    cur.execute(f"SELECT MAX(number) FROM ski.kihon_inventory WHERE grade_id = {grade_id} GROUP BY grade_id;")
+    result = cur.fetchone()
+    cur.close()
+    conn.close()
+    print(result)
+    max_seq = int(result[0])
+    print(max_seq)
+    return {"grade": grade_id,"n_kihon":max_seq}
 
 @app.get("/kihon_list/{grade_id}/{sequenza}")
 def kihon(grade_id: int , sequenza: int):
@@ -78,6 +85,45 @@ def kihon(grade_id: int , sequenza: int):
     grade = f"{grade_data[0]}° {grade_data[1]}"
     return {"grade": grade, "grade_id": grade_id, "sequenza_n":sequenza,"tecniche":res}
 
+@app.get("/kihons/{grade_id}")
+def kihon(grade_id: int):
+    """
+    da compilare
+    """
+    query = f"""
+    SELECT 
+        inv.number ,
+        seq.seq_num,
+        tx.movement ,
+        CASE
+             WHEN seq.gyaku THEN CONCAT('(Gyaku) ',ski.get_technic_name(seq.techinc))
+             ELSE  ski.get_technic_name(seq.techinc)
+        END AS tecnica,
+        ski.get_stand_name(seq.stand) AS posizione ,
+        seq.target_hgt
+    FROM ski.kihon_sequences AS seq
+    INNER JOIN ski.kihon_inventory AS inv
+    ON seq.inventory_id = inv.id_inventory
+    LEFT JOIN ski.kihon_tx AS tx 
+    ON seq.id_sequence = tx.to_seq 
+    WHERE inv.grade_id = {grade_id}
+    AND seq_num != 0
+    ORDER BY inv.number,seq_num;
+    """
+    conn = psycopg2.connect(uri)
+    cur = conn.cursor()
+    cur.execute(query)
+    result = cur.fetchall()
+    cur.execute(f"SELECT grade,gtype FROM ski.grades WHERE id_grade = {grade_id};")
+    grade_data = cur.fetchone()
+    cur.close()
+    conn.close()
+    print(result)
+    res = [{"sequenza" :row[0] , "ordine":row[1],"movement":row[2],"tecnica":row[3],"Stand":row[4],"Target":row[5]} for row in result]
+    
+    grade = f"{grade_data[0]}° {grade_data[1]}"
+    return {"grade": grade, "grade_id": grade_id, "kihons":res}
+
 @app.get("/kata/{kata_id}")
 def kata(kata_id: int):
     """
@@ -85,17 +131,20 @@ def kata(kata_id: int):
     """
     conn = psycopg2.connect(uri)
     cur = conn.cursor()
-    cur.execute(f"SELECT * FROM ski.get_katasequence(1);")
+    cur.execute(f"SELECT * FROM ski.get_katasequence({kata_id});")
     steps_result = cur.fetchall()
-    cur.execute(f"SELECT * FROM ski.get_katatx(1);")
+    cur.execute(f"SELECT * FROM ski.get_katatx({kata_id});")
     tx_result = cur.fetchall()
     cur.close()
     conn.close()
     print(steps_result)
     print(tx_result)
-    res_steps = {step[2]:{ "id_sequence":step[0], "kata_id":step[1],  "posizione":step[3] ,"guardia":step[4]  , "facing":step[5] , "tecniche":step[6] , "embusen":step[7] , "kiai":step[8]} for step in  steps_result}
+    res_steps = {step[2]:{'id_sequence' : step[0] , 'kata_id' : step[1] , 'seq_num' : step[2] , 'stand_id' : step[3] , 'posizione' : step[4] , 'guardia' : step[5] , 'facing' : step[6] , 'tecniche' : step[7] , 'embusen' : step[8] , 'kiai' : step[9]} for step in  steps_result}
     res_tx = [{"id_tx":tx[0] , "from_seq":tx[1] , "to_seq":tx[2] , "tempo":tx[3]  , "direction":tx[4]} for tx in tx_result]
     return {"kata_id": kata_id, "steps":res_steps , "transactions":res_tx}
+
+
+
 
 @app.get("/grade_inventory")
 def grade_inventory():
