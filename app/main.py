@@ -119,7 +119,7 @@ def kihon(grade_id: int):
     cur.close()
     conn.close()
     print(result)
-    res = [{"sequenza" :row[0] , "ordine":row[1],"movement":row[2],"tecnica":row[3],"Stand":row[4],"Target":row[5]} for row in result]
+    res = {row[0]:{row[1]:{"movement": row[2],"tecnica": row[3], "Stand": row[4] ,"Target":row[5]}} for row in result}
     
     grade = f"{grade_data[0]}° {grade_data[1]}"
     return {"grade": grade, "grade_id": grade_id, "kihons":res}
