@@ -155,10 +155,13 @@ def kihon(grade_id: int):
         inv.number ,
         seq.seq_num,
         tx.movement ,
+        seq.techinc AS technic_id,
+        seq.gyaku ,
         CASE
              WHEN seq.gyaku THEN CONCAT('(Gyaku) ',tech.name)
              ELSE tech.name
         END AS tecnica,
+        seq.stand AS stand_id ,
         stands.name AS posizione ,
         seq.target_hgt,
         seq.notes
@@ -188,7 +191,16 @@ def kihon(grade_id: int):
     for row in result:
         if row[0] not in res.keys(): 
             res[row[0]] = dict()
-        res[row[0]][row[1]] = {"movement": row[2],"tecnica": row[3], "Stand": row[4] ,"Target":row[5],"Note":row[6]}
+        res[row[0]][row[1]] = {
+            "movement": row[2],
+            "technic_id": row[3],
+            "gyaku": row[4],
+            "tecnica": row[5], 
+            "stand_id": row[6],
+            "Stand": row[7] ,
+            "Target":row[8],
+            "Note":row[9]
+        }
     
     grade = f"{grade_data[0]}° {grade_data[1]}"
     return {"grade": grade, "grade_id": grade_id, "kihons":res}
@@ -220,7 +232,8 @@ def kata(kata_id: int):
             'facing' : step[6] , 
             'tecniche' : step[7] , 
             'embusen' : step[8] , 
-            'kiai' : step[9]
+            'kiai' : step[9],
+            'notes':step[10]
         } for step in  steps_result
     }
     
@@ -282,9 +295,10 @@ def get_info_technic(item_id: int):
     cur.close()
     conn.close()
     if result:
-        return {'id_technic':result[0], 'waza':result[1], 'name':result[2], 'description':result[3], 'notes':result[4], 'resource_url':result[5]}
+        row = {'id_technic':result[0], 'waza':result[1], 'name':result[2], 'description':result[3], 'notes':result[4], 'resource_url':result[5]}
     else:
-        return {'id_technic':None, 'waza':None, 'name':None, 'description':None, 'notes':None, 'resource_url':None}
+        row = {'id_technic':None, 'waza':None, 'name':None, 'description':None, 'notes':None, 'resource_url':None}
+    return {"id":item_id,"info_technic":row}
 
 
 @app.get("/info_stand/{item_id}")
@@ -296,9 +310,10 @@ def get_info_stand(item_id: int):
     cur.close()
     conn.close()
     if result:
-        return {'id_stand':result[0], 'name':result[1], 'description':result[2], 'illustration_url':result[3], 'notes':result[4]}
+        row =  {'id_stand':result[0], 'name':result[1], 'description':result[2], 'illustration_url':result[3], 'notes':result[4]}
     else:
-        return {'id_stand':None, 'name':None, 'description':None, 'illustration_url':None, 'notes':None}
+        row =  {'id_stand':None, 'name':None, 'description':None, 'illustration_url':None, 'notes':None}
+    return {"id":item_id,"info_stand":row}
 
 
 @app.get("/info_strikingparts/{item_id}")
@@ -311,9 +326,10 @@ def get_info_strikingparts(item_id: int):
     conn.close()
     print(result)
     if result:
-        return {'id_part':result[0], 'name':result[1], 'translation':result[2], 'description':result[3], 'notes':result[4], 'resource_url':result[5]}
+        row =  {'id_part':result[0], 'name':result[1], 'translation':result[2], 'description':result[3], 'notes':result[4], 'resource_url':result[5]}
     else:
-        return {'id_part':None, 'name':None, 'translation':None, 'description':None, 'notes':None, 'resource_url':None}
+        row =  {'id_part':None, 'name':None, 'translation':None, 'description':None, 'notes':None, 'resource_url':None}
+    return {"id":item_id,"info_strikingparts":row}
 
 
 @app.get("/info_target/{item_id}")
@@ -325,9 +341,10 @@ def get_info_target(item_id: int):
     cur.close()
     conn.close()
     if result:
-        return {'id_target':result[0], 'name':result[1], 'original_name':result[2], 'description':result[3], 'notes':result[4], 'resource_url':result[5]}
+        row =  {'id_target':result[0], 'name':result[1], 'original_name':result[2], 'description':result[3], 'notes':result[4], 'resource_url':result[5]}
     else:
-        return {'id_target':None, 'name':None, 'original_name':None, 'description':None, 'notes':None, 'resource_url':None}
+        row =  {'id_target':None, 'name':None, 'original_name':None, 'description':None, 'notes':None, 'resource_url':None}
+    return {"id":item_id,"info_target":row}
 
 
 @app.get("/finder")
@@ -412,10 +429,69 @@ def finder(search:str = ""):
     cur.execute(query_strikingparts)
     results_strikingparts = cur.fetchall()
     cur.close()
-                
     conn.close()
+    
+    output_technics = {
+        result[2]:{
+            'id_technic':result[2], 
+             'waza':result[3], 
+             'name':result[4], 
+             'description':result[5], 
+             'notes':result[6], 
+             'resource_url':result[7]
+            }
+        for result in results_technics}
 
-    return {"ts": search , 
+    output_stands = {
+        result[2]:{
+            'id_stand':result[2], 
+            'name':result[3], 
+            'description':result[4], 
+            'illustration_url':result[5], 
+            'notes':result[6]
+        } for result in results_stands}
+
+    output_strikingparts = {result[2]:{
+            'id_part':result[2], 
+            'name':result[3], 
+            'translation':result[4], 
+            'description':result[5], 
+            'notes':result[6], 
+            'resource_url':result[7]}
+            for result in results_strikingparts}
+
+    output_targets = {result[2]:{
+            'id_target':result[2], 
+            'name':result[3], 
+            'original_name':result[4], 
+            'description':result[5], 
+            'notes':result[6], 
+            'resource_url':result[7]
+        } for result in results_targets}
+    maxrel = max([result[0] for result in results_targets ] +
+        [result[0] for result in results_technics ] +
+        [result[0] for result in results_stands ] +
+        [result[0] for result in results_strikingparts ] 
+    )
+
+    relevance_results_targets = {
+        result[2]:{"abs_relevance" :result[0] , "relative_relevance":result[0]/maxrel } for result in  results_targets 
+    }
+    relevance_results_technics = {
+        result[2]:{"abs_relevance" :result[0] , "relative_relevance":result[0]/maxrel } for result in  results_technics 
+    }
+    relevance_results_stands = {
+        result[2]:{"abs_relevance" :result[0] , "relative_relevance":result[0]/maxrel } for result in  results_stands 
+    }
+    relevance_results_strikingparts = {
+        result[2]:{"abs_relevance" :result[0] , "relative_relevance":result[0]/maxrel } for result in results_strikingparts 
+    }
+    return {"ts": search ,
+            "max_relevance" : maxrel,
+            "Targets_relevance":relevance_results_targets , 
+            "Technics_relevance":relevance_results_technics , 
+            "Stands_relevance":relevance_results_stands , 
+            "Striking_parts_relevance":relevance_results_strikingparts,
             "Targets":results_targets , 
             "Technics":results_technics , 
             "Stands":results_stands , 
