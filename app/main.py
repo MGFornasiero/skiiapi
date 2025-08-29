@@ -21,7 +21,7 @@ def read_gradeid(gradetype:str ,grade: int):
     """
     da compilare
     """
-    query = f"SELECT ski.get_gradeid({grade},'{gradetype}');"
+    query = f"SELECT get_gradeid({grade},'{gradetype}');"
     conn = psycopg2.connect(uri)
     cur = conn.cursor()
     cur.execute(query)
@@ -52,43 +52,29 @@ def kihon_dtls(grade_id: int , sequenza: int):
     """
     da compilare
     """
-    q_step = f"""
-    SELECT seq.id_sequence,
-        seq.inventory_id,
-        seq.seq_num,
-        seq.stand,
-        seq.techinc,
-        seq.gyaku,
-        seq.target_hgt,
-        seq.notes,
-        seq.resource_url,
-        stand.name AS stand_name,
-        technic.name AS technic_name
-    FROM ski.kihon_sequences AS seq
-    JOIN ski.kihon_inventory AS inv ON seq.inventory_id = inv.id_inventory
-    LEFT JOIN ski.stands as stand ON seq.stand = stand.id_stand
-    LEFT JOIN ski.technics as technic ON seq.techinc = technic.id_technic
-    WHERE inv.grade_id = {grade_id} and inv.number = {sequenza}
-    ORDER BY seq.seq_num;
+    q_step =f"""
+    SELECT id_sequence,
+           inventory_id,
+           seq_num,
+           stand_id,
+           technic_id,
+           gyaku,
+           target_hgt,
+           notes,
+           resource_url,
+           stand_name,
+           technic_name
+    FROM get_kihon_steps({grade_id}, {sequenza});
     """
     q_tx = f"""
-    WITH relevant_sequences AS (
-        SELECT seq.id_sequence
-        FROM ski.kihon_sequences AS seq
-        JOIN ski.kihon_inventory AS inv ON seq.inventory_id = inv.id_inventory
-        WHERE inv.grade_id = {grade_id} and inv.number = {sequenza}
-    )
-    SELECT tx.id_tx,
-        tx.from_seq,
-        tx.to_seq,
-        tx.movement,
-        tx.tempo,
-        tx.notes,
-        tx.resource_url
-    FROM ski.kihon_tx AS tx
-    WHERE tx.from_seq IN (SELECT id_sequence FROM relevant_sequences)
-       OR tx.to_seq IN (SELECT id_sequence FROM relevant_sequences)
-    ORDER BY tx.from_seq;
+    SELECT id_tx,
+           from_sequence,
+           to_sequence,
+           movement,
+           tempo,
+           notes,
+           resource_url
+    FROM get_kihon_tx({grade_id}, {sequenza});
     """
     
     conn = psycopg2.connect(uri)
@@ -151,32 +137,17 @@ def kihon(grade_id: int):
     da compilare
     """
     query = f"""
-    SELECT 
-        inv.number ,
-        seq.seq_num,
-        tx.movement ,
-        seq.techinc AS technic_id,
-        seq.gyaku ,
-        CASE
-             WHEN seq.gyaku THEN CONCAT('(Gyaku) ',tech.name)
-             ELSE tech.name
-        END AS tecnica,
-        seq.stand AS stand_id ,
-        stands.name AS posizione ,
-        seq.target_hgt,
-        seq.notes
-    FROM ski.kihon_sequences AS seq
-    INNER JOIN ski.kihon_inventory AS inv
-    ON seq.inventory_id = inv.id_inventory
-    LEFT JOIN ski.kihon_tx AS tx 
-    ON seq.id_sequence = tx.to_seq 
-    LEFT JOIN ski.technics AS tech
-    ON seq.techinc = tech.id_technic
-    LEFT JOIN ski.stands as stands
-    ON seq.stand = stands.id_stand
-    WHERE inv.grade_id = {grade_id}
-    AND seq_num != 0
-    ORDER BY inv.number,seq_num;
+    SELECT number,
+           seq_num,
+           movement,
+           technic_id,
+           gyaku,
+           tecnica,
+           stand_id,
+           posizione,
+           target_hgt,
+           notes
+    FROM kihon_frmlist({grade_id});
     """
     conn = psycopg2.connect(uri)
     cur = conn.cursor()
@@ -212,11 +183,12 @@ def kata(kata_id: int):
     """
     conn = psycopg2.connect(uri)
     cur = conn.cursor()
-    cur.execute(f"SELECT * FROM ski.get_katasequence({kata_id});")
+    #cur.execute(f"SELECT * FROM get_katasequence({kata_id});")
+    cur.execute(f"SELECT id_sequence, kata_id, seq_num, stand_id, posizione, guardia, facing, Tecniche, embusen, kiai, notes FROM public.get_katasequence({kata_id});")
     steps_result = cur.fetchall()
-    cur.execute(f"SELECT * FROM ski.get_katatx({kata_id});")
+    cur.execute(f"SELECT id_tx, from_sequence, to_sequence, tempo, direction, notes FROM public.get_katatx({kata_id});")
     tx_result = cur.fetchall()
-    cur.execute(f"SELECT kata , serie ,starting_leg FROM ski.Kata_inventory Where id_kata = {kata_id};")
+    cur.execute(f"SELECT kata , serie ,starting_leg FROM ski.kata_inventory Where id_kata = {kata_id};")
     info = cur.fetchone()
     cur.close()
     conn.close()
@@ -290,7 +262,7 @@ def kata_inventory():
 def get_info_technic(item_id: int):
     conn = psycopg2.connect(uri)
     cur = conn.cursor()
-    cur.execute(f"SELECT id_technic, waza, name, description, notes, resource_url FROM ski.get_technic_info({item_id});")
+    cur.execute(f"SELECT id_technic, waza, name, description, notes, resource_url FROM get_technic_info({item_id});")
     result = cur.fetchone()
     cur.close()
     conn.close()
@@ -305,7 +277,7 @@ def get_info_technic(item_id: int):
 def get_info_stand(item_id: int):
     conn = psycopg2.connect(uri)
     cur = conn.cursor()
-    cur.execute(f"SELECT id_stand, name, description, illustration_url, notes FROM ski.get_stand_info({item_id});")
+    cur.execute(f"SELECT id_stand, name, description, illustration_url, notes FROM get_stand_info({item_id});")
     result = cur.fetchone()
     cur.close()
     conn.close()
@@ -320,7 +292,7 @@ def get_info_stand(item_id: int):
 def get_info_strikingparts(item_id: int):
     conn = psycopg2.connect(uri)
     cur = conn.cursor()
-    cur.execute(f"SELECT id_part, name, translation, description, notes, resource_url FROM ski.get_strikingparts_info({item_id});")
+    cur.execute(f"SELECT id_part, name, translation, description, notes, resource_url FROM get_strikingparts_info({item_id});")
     result = cur.fetchone()
     cur.close()
     conn.close()
@@ -336,7 +308,7 @@ def get_info_strikingparts(item_id: int):
 def get_info_target(item_id: int):
     conn = psycopg2.connect(uri)
     cur = conn.cursor()
-    cur.execute(f"SELECT id_target, name, original_name, description, notes, resource_url FROM ski.get_target_info({item_id});")
+    cur.execute(f"SELECT id_target, name, original_name, description, notes, resource_url FROM get_target_info({item_id});")
     result = cur.fetchone()
     cur.close()
     conn.close()
@@ -498,7 +470,33 @@ def finder(search:str = ""):
             "Striking_parts":results_strikingparts
     }
 
+@app.get("/findernew")
+def finder(search: str = ""):
+    conn = psycopg2.connect(uri)
+    cur = conn.cursor()
 
+    cur.execute(f"SELECT pertinenza, pertinenza_relativa, id_target, name, original_name, description, notes, resource_url FROM public.qry_ts_targets('{search}');")
+    results_targets = cur.fetchall()
+
+    cur.execute(f"SELECT pertinenza, pertinenza_relativa, id_technic, waza, name, description, notes, resource_url FROM public.qry_ts_technics('{search}');")
+    results_technics = cur.fetchall()
+
+    cur.execute(f"SELECT pertinenza, pertinenza_relativa, id_stand, name, description, illustration_url, notes FROM public.qry_ts_stands('{search}');")
+    results_stands = cur.fetchall()
+
+    cur.execute(f"SELECT pertinenza, pertinenza_relativa, id_part, name, translation, description, notes, resource_url FROM public.qry_ts_strikingparts('{search}');")
+    results_strikingparts = cur.fetchall()
+
+    cur.close()
+    conn.close()
+
+    return {
+        "ts": search,
+        "Targets": results_targets,
+        "Technics": results_technics,
+        "Stands": results_stands,
+        "Striking_parts": results_strikingparts
+    }
 
 @app.get("/technic_inventory")
 def info_technic_inventory():
