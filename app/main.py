@@ -21,7 +21,7 @@ def read_gradeid(gradetype:str ,grade: int):
     """
     da compilare
     """
-    query = f"SELECT get_gradeid({grade},'{gradetype}');"
+    query = f"SELECT get_gradeid({grade},'{gradetype}');" #creare funzione opposta che dal gradeid restituisce grade e gradetype: public.get_grade
     conn = psycopg2.connect(uri)
     cur = conn.cursor()
     cur.execute(query)
@@ -38,7 +38,7 @@ def read_kihonsequencedomain(grade_id: int ):
     """
     conn = psycopg2.connect(uri)
     cur = conn.cursor()
-    cur.execute(f"SELECT MAX(number) FROM ski.kihon_inventory WHERE grade_id = {grade_id} GROUP BY grade_id;")
+    cur.execute(f"SELECT MAX(number) FROM ski.kihon_inventory WHERE grade_id = {grade_id} GROUP BY grade_id;") #sostituire con funzione public.get_nkihon
     result = cur.fetchone()
     cur.close()
     conn.close()
@@ -83,9 +83,9 @@ def kihon_dtls(grade_id: int , sequenza: int):
     result_steps = cur.fetchall()
     cur.execute(q_tx)
     result_tx = cur.fetchall()
-    cur.execute(f"SELECT notes FROM ski.kihon_inventory WHERE grade_id = {grade_id} and number = {sequenza};")
+    cur.execute(f"SELECT notes FROM ski.kihon_inventory WHERE grade_id = {grade_id} and number = {sequenza};") #sostituire con funzione # public.get_kihonnotes
     result_note = cur.fetchone()
-    cur.execute(f"SELECT grade,gtype FROM ski.grades WHERE id_grade = {grade_id};")
+    cur.execute(f"SELECT grade,gtype FROM ski.grades WHERE id_grade = {grade_id};") #sostituire con funzione public.get_grade
     grade_data = cur.fetchone()
     cur.close()
     conn.close()
@@ -153,7 +153,7 @@ def kihon(grade_id: int):
     cur = conn.cursor()
     cur.execute(query)
     result = cur.fetchall()
-    cur.execute(f"SELECT grade,gtype FROM ski.grades WHERE id_grade = {grade_id};")
+    cur.execute(f"SELECT grade,gtype FROM ski.grades WHERE id_grade = {grade_id};") #sostituire con funzione get_grade
     grade_data = cur.fetchone()
     cur.close()
     conn.close()
@@ -188,7 +188,7 @@ def kata(kata_id: int):
     steps_result = cur.fetchall()
     cur.execute(f"SELECT id_tx, from_sequence, to_sequence, tempo, direction, notes FROM public.get_katatx({kata_id});")
     tx_result = cur.fetchall()
-    cur.execute(f"SELECT kata , serie ,starting_leg FROM ski.kata_inventory Where id_kata = {kata_id};")
+    cur.execute(f"SELECT kata , serie ,starting_leg FROM ski.kata_inventory Where id_kata = {kata_id};") #sostituire con funzione public.get_katainfo
     info = cur.fetchone()
     cur.close()
     conn.close()
@@ -240,7 +240,7 @@ def kata(kata_id: int):
 def grade_inventory():
     conn = psycopg2.connect(uri)
     cur = conn.cursor()
-    cur.execute("SELECT grade,gtype, id_grade FROM ski.grades;")
+    cur.execute("SELECT grade,gtype, id_grade FROM ski.grades;") #sostituire con funzione public.show_gradeinventory
     results = cur.fetchall()
     cur.close()
     conn.close()
@@ -251,7 +251,7 @@ def grade_inventory():
 def kata_inventory():
     conn = psycopg2.connect(uri)
     cur = conn.cursor()
-    cur.execute("SELECT  id_kata , kata ,serie , starting_leg , notes , resource_url FROM ski.Kata_inventory;")
+    cur.execute("SELECT  id_kata , kata ,serie , starting_leg , notes , resource_url FROM ski.Kata_inventory;") #sostituire con funzione public.show_katainventory
     results = cur.fetchall()
     cur.close()
     conn.close()
@@ -489,13 +489,71 @@ def finder(search: str = ""):
 
     cur.close()
     conn.close()
+    output_technics = {
+        result[2]:{
+            'id_technic':result[2], 
+             'waza':result[3], 
+             'name':result[4], 
+             'description':result[5], 
+             'notes':result[6], 
+             'resource_url':result[7]
+            }
+        for result in results_technics}
 
-    return {
-        "ts": search,
-        "Targets": results_targets,
-        "Technics": results_technics,
-        "Stands": results_stands,
-        "Striking_parts": results_strikingparts
+    output_stands = {
+        result[2]:{
+            'id_stand':result[2], 
+            'name':result[3], 
+            'description':result[4], 
+            'illustration_url':result[5], 
+            'notes':result[6]
+        } for result in results_stands}
+
+    output_strikingparts = {result[2]:{
+            'id_part':result[2], 
+            'name':result[3], 
+            'translation':result[4], 
+            'description':result[5], 
+            'notes':result[6], 
+            'resource_url':result[7]}
+            for result in results_strikingparts}
+
+    output_targets = {result[2]:{
+            'id_target':result[2], 
+            'name':result[3], 
+            'original_name':result[4], 
+            'description':result[5], 
+            'notes':result[6], 
+            'resource_url':result[7]
+        } for result in results_targets}
+    maxrel = max([result[0] for result in results_targets ] +
+        [result[0] for result in results_technics ] +
+        [result[0] for result in results_stands ] +
+        [result[0] for result in results_strikingparts ] 
+    )
+
+    relevance_results_targets = {
+        result[2]:{"abs_relevance" :result[0] , "relative_relevance":result[0]/maxrel } for result in  results_targets 
+    }
+    relevance_results_technics = {
+        result[2]:{"abs_relevance" :result[0] , "relative_relevance":result[0]/maxrel } for result in  results_technics 
+    }
+    relevance_results_stands = {
+        result[2]:{"abs_relevance" :result[0] , "relative_relevance":result[0]/maxrel } for result in  results_stands 
+    }
+    relevance_results_strikingparts = {
+        result[2]:{"abs_relevance" :result[0] , "relative_relevance":result[0]/maxrel } for result in results_strikingparts 
+    }
+    return {"ts": search ,
+            "max_relevance" : maxrel,
+            "Targets_relevance":relevance_results_targets , 
+            "Technics_relevance":relevance_results_technics , 
+            "Stands_relevance":relevance_results_stands , 
+            "Striking_parts_relevance":relevance_results_strikingparts,
+            "Targets":results_targets , 
+            "Technics":results_technics , 
+            "Stands":results_stands , 
+            "Striking_parts":results_strikingparts
     }
 
 @app.get("/technic_inventory")
