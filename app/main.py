@@ -21,7 +21,7 @@ def read_gradeid(gradetype:str ,grade: int):
     """
     da compilare
     """
-    query = f"SELECT get_gradeid({grade},'{gradetype}');" #creare funzione opposta che dal gradeid restituisce grade e gradetype: public.get_grade
+    query = f"SELECT get_gradeid({grade},'{gradetype}');" 
     conn = psycopg2.connect(uri)
     cur = conn.cursor()
     cur.execute(query)
@@ -471,90 +471,68 @@ def finder(search:str = ""):
     }
 
 @app.get("/findernew")
-def finder(search: str = ""):
+def findernew(search: str = ""):
     conn = psycopg2.connect(uri)
     cur = conn.cursor()
 
-    cur.execute(f"SELECT pertinenza, pertinenza_relativa, id_target, name, original_name, description, notes, resource_url FROM public.qry_ts_targets('{search}');")
+    cur.execute(f"SELECT pertinenza, pertinenza_relativa, id_target, name, original_name, description, notes, resource_url FROM public.qry_ts_targets(%s);", (search,))
     results_targets = cur.fetchall()
 
-    cur.execute(f"SELECT pertinenza, pertinenza_relativa, id_technic, waza, name, description, notes, resource_url FROM public.qry_ts_technics('{search}');")
+    cur.execute(f"SELECT pertinenza, pertinenza_relativa, id_technic, waza, name, description, notes, resource_url FROM public.qry_ts_technics(%s);", (search,))
     results_technics = cur.fetchall()
 
-    cur.execute(f"SELECT pertinenza, pertinenza_relativa, id_stand, name, description, illustration_url, notes FROM public.qry_ts_stands('{search}');")
+    cur.execute(f"SELECT pertinenza, pertinenza_relativa, id_stand, name, description, illustration_url, notes FROM public.qry_ts_stands(%s);", (search,))
     results_stands = cur.fetchall()
 
-    cur.execute(f"SELECT pertinenza, pertinenza_relativa, id_part, name, translation, description, notes, resource_url FROM public.qry_ts_strikingparts('{search}');")
+    cur.execute(f"SELECT pertinenza, pertinenza_relativa, id_part, name, translation, description, notes, resource_url FROM public.qry_ts_strikingparts(%s);", (search,))
     results_strikingparts = cur.fetchall()
 
     cur.close()
     conn.close()
+
+    # identical JSON construction as in /finder
     output_technics = {
-        result[2]:{
-            'id_technic':result[2], 
-             'waza':result[3], 
-             'name':result[4], 
-             'description':result[5], 
-             'notes':result[6], 
-             'resource_url':result[7]
-            }
-        for result in results_technics}
-
+        r[2]: {'id_technic':r[2],'waza':r[3],'name':r[4],'description':r[5],'notes':r[6],'resource_url':r[7]}
+        for r in results_technics
+    }
     output_stands = {
-        result[2]:{
-            'id_stand':result[2], 
-            'name':result[3], 
-            'description':result[4], 
-            'illustration_url':result[5], 
-            'notes':result[6]
-        } for result in results_stands}
+        r[2]: {'id_stand':r[2],'name':r[3],'description':r[4],'illustration_url':r[5],'notes':r[6]}
+        for r in results_stands
+    }
+    output_strikingparts = {
+        r[2]: {'id_part':r[2],'name':r[3],'translation':r[4],'description':r[5],'notes':r[6],'resource_url':r[7]}
+        for r in results_strikingparts
+    }
+    output_targets = {
+        r[2]: {'id_target':r[2],'name':r[3],'original_name':r[4],'description':r[5],'notes':r[6],'resource_url':r[7]}
+        for r in results_targets
+    }
 
-    output_strikingparts = {result[2]:{
-            'id_part':result[2], 
-            'name':result[3], 
-            'translation':result[4], 
-            'description':result[5], 
-            'notes':result[6], 
-            'resource_url':result[7]}
-            for result in results_strikingparts}
-
-    output_targets = {result[2]:{
-            'id_target':result[2], 
-            'name':result[3], 
-            'original_name':result[4], 
-            'description':result[5], 
-            'notes':result[6], 
-            'resource_url':result[7]
-        } for result in results_targets}
-    maxrel = max([result[0] for result in results_targets ] +
-        [result[0] for result in results_technics ] +
-        [result[0] for result in results_stands ] +
-        [result[0] for result in results_strikingparts ] 
+    maxrel = max(
+        [r[0] for r in results_targets] +
+        [r[0] for r in results_technics] +
+        [r[0] for r in results_stands] +
+        [r[0] for r in results_strikingparts]
     )
 
-    relevance_results_targets = {
-        result[2]:{"abs_relevance" :result[0] , "relative_relevance":result[0]/maxrel } for result in  results_targets 
+    relevance_results_targets = {r[2]:{"abs_relevance":r[0], "relative_relevance":r[0]/maxrel} for r in results_targets}
+    relevance_results_technics = {r[2]:{"abs_relevance":r[0], "relative_relevance":r[0]/maxrel} for r in results_technics}
+    relevance_results_stands = {r[2]:{"abs_relevance":r[0], "relative_relevance":r[0]/maxrel} for r in results_stands}
+    relevance_results_strikingparts = {r[2]:{"abs_relevance":r[0], "relative_relevance":r[0]/maxrel} for r in results_strikingparts}
+
+    return {
+        "ts": search,
+        "max_relevance": maxrel,
+        "Targets_relevance": relevance_results_targets,
+        "Technics_relevance": relevance_results_technics,
+        "Stands_relevance": relevance_results_stands,
+        "Striking_parts_relevance": relevance_results_strikingparts,
+        "Targets": output_targets,
+        "Technics": output_technics,
+        "Stands": output_stands,
+        "Striking_parts": output_strikingparts
     }
-    relevance_results_technics = {
-        result[2]:{"abs_relevance" :result[0] , "relative_relevance":result[0]/maxrel } for result in  results_technics 
-    }
-    relevance_results_stands = {
-        result[2]:{"abs_relevance" :result[0] , "relative_relevance":result[0]/maxrel } for result in  results_stands 
-    }
-    relevance_results_strikingparts = {
-        result[2]:{"abs_relevance" :result[0] , "relative_relevance":result[0]/maxrel } for result in results_strikingparts 
-    }
-    return {"ts": search ,
-            "max_relevance" : maxrel,
-            "Targets_relevance":relevance_results_targets , 
-            "Technics_relevance":relevance_results_technics , 
-            "Stands_relevance":relevance_results_stands , 
-            "Striking_parts_relevance":relevance_results_strikingparts,
-            "Targets":results_targets , 
-            "Technics":results_technics , 
-            "Stands":results_stands , 
-            "Striking_parts":results_strikingparts
-    }
+
 
 @app.get("/technic_inventory")
 def info_technic_inventory():
