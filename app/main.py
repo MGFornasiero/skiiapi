@@ -39,6 +39,8 @@ def read_kihonsequencedomain(grade_id: int ):
     conn = psycopg2.connect(uri)
     cur = conn.cursor()
     cur.execute(f"SELECT MAX(number) FROM ski.kihon_inventory WHERE grade_id = {grade_id} GROUP BY grade_id;") #sostituire con funzione public.get_nkihon
+    #cur.execute("SELECT nkihon FROM public.get_nkihon(%s);", (grade_id,))
+
     result = cur.fetchone()
     cur.close()
     conn.close()
@@ -154,6 +156,8 @@ def kihon(grade_id: int):
     cur.execute(query)
     result = cur.fetchall()
     cur.execute(f"SELECT grade,gtype FROM ski.grades WHERE id_grade = {grade_id};") #sostituire con funzione get_grade
+    #cur.execute("SELECT grade, gtype FROM public.get_grade(%s);", (grade_id,))
+
     grade_data = cur.fetchone()
     cur.close()
     conn.close()
@@ -189,6 +193,8 @@ def kata(kata_id: int):
     cur.execute(f"SELECT id_tx, from_sequence, to_sequence, tempo, direction, notes FROM public.get_katatx({kata_id});")
     tx_result = cur.fetchall()
     cur.execute(f"SELECT kata , serie ,starting_leg FROM ski.kata_inventory Where id_kata = {kata_id};") #sostituire con funzione public.get_katainfo
+    #cur.execute("SELECT kata, serie, starting_leg FROM public.get_katainfo(%s);", (kata_id,))
+
     info = cur.fetchone()
     cur.close()
     conn.close()
@@ -241,6 +247,8 @@ def grade_inventory():
     conn = psycopg2.connect(uri)
     cur = conn.cursor()
     cur.execute("SELECT grade,gtype, id_grade FROM ski.grades;") #sostituire con funzione public.show_gradeinventory
+    #cur.execute("SELECT grade, gtype, id_grade FROM public.show_gradeinventory();")
+
     results = cur.fetchall()
     cur.close()
     conn.close()
@@ -252,6 +260,7 @@ def kata_inventory():
     conn = psycopg2.connect(uri)
     cur = conn.cursor()
     cur.execute("SELECT  id_kata , kata ,serie , starting_leg , notes , resource_url FROM ski.Kata_inventory;") #sostituire con funzione public.show_katainventory
+    #cur.execute("SELECT id_kata, kata, serie, starting_leg, notes, resource_url FROM public.show_katainventory();")
     results = cur.fetchall()
     cur.close()
     conn.close()
@@ -539,6 +548,7 @@ def info_technic_inventory():
     conn = psycopg2.connect(uri)
     cur = conn.cursor()
     cur.execute(f"SELECT id_technic, waza, name, description, notes, resource_url FROM ski.technics;")
+    #cur.execute("SELECT id_technic, waza, name, description, notes, resource_url FROM public.get_technics();")
     results = cur.fetchall()
     cur.close()
     conn.close()
@@ -563,6 +573,7 @@ def get_stand_inventory():
     conn = psycopg2.connect(uri)
     cur = conn.cursor()
     cur.execute(f"SELECT id_stand, name, description, illustration_url, notes FROM ski.stands;")
+    #cur.execute("SELECT id_stand, name, description, illustration_url, notes FROM public.get_stands();")
     results = cur.fetchall()
     cur.close()
     conn.close()
@@ -585,6 +596,7 @@ def get_strikingparts_inventory():
     conn = psycopg2.connect(uri)
     cur = conn.cursor()
     cur.execute(f"SELECT id_part, name, translation, description, notes, resource_url FROM ski.strikingparts;")
+    #cur.execute("SELECT id_part, name, translation, description, notes, resource_url FROM public.get_strikingparts();")
     results = cur.fetchall()
     cur.close()
     conn.close()
@@ -607,6 +619,7 @@ def get_target_inventory():
     conn = psycopg2.connect(uri)
     cur = conn.cursor()
     cur.execute(f"SELECT id_target, name, original_name, description, notes, resource_url FROM ski.targets;")
+    #cur.execute("SELECT id_target, name, original_name, description, notes, resource_url FROM public.get_targets();")
     results = cur.fetchall()
     cur.close()
     conn.close()
