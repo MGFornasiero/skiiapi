@@ -484,37 +484,64 @@ def findernew(search: str = ""):
     conn = psycopg2.connect(uri)
     cur = conn.cursor()
 
-    cur.execute(f"SELECT pertinenza, pertinenza_relativa, id_target, name, original_name, description, notes, resource_url FROM public.qry_ts_targets(%s);", (search,))
+    # Use database functions instead of inline queries
+    cur.execute("SELECT pertinenza, pertinenza_relativa, id_target, name, original_name, description, notes, resource_url FROM public.qry_ts_targets(%s);", (search,))
     results_targets = cur.fetchall()
 
-    cur.execute(f"SELECT pertinenza, pertinenza_relativa, id_technic, waza, name, description, notes, resource_url FROM public.qry_ts_technics(%s);", (search,))
+    cur.execute("SELECT pertinenza, pertinenza_relativa, id_technic, waza, name, description, notes, resource_url FROM public.qry_ts_technics(%s);", (search,))
     results_technics = cur.fetchall()
 
-    cur.execute(f"SELECT pertinenza, pertinenza_relativa, id_stand, name, description, illustration_url, notes FROM public.qry_ts_stands(%s);", (search,))
+    cur.execute("SELECT pertinenza, pertinenza_relativa, id_stand, name, description, illustration_url, notes FROM public.qry_ts_stands(%s);", (search,))
     results_stands = cur.fetchall()
 
-    cur.execute(f"SELECT pertinenza, pertinenza_relativa, id_part, name, translation, description, notes, resource_url FROM public.qry_ts_strikingparts(%s);", (search,))
+    cur.execute("SELECT pertinenza, pertinenza_relativa, id_part, name, translation, description, notes, resource_url FROM public.qry_ts_strikingparts(%s);", (search,))
     results_strikingparts = cur.fetchall()
 
     cur.close()
     conn.close()
 
-    # identical JSON construction as in /finder
+    # Build parsed dictionaries like /finder
     output_technics = {
-        r[2]: {'id_technic':r[2],'waza':r[3],'name':r[4],'description':r[5],'notes':r[6],'resource_url':r[7]}
-        for r in results_technics
+        r[2]: {
+            'id_technic': r[2],
+            'waza': r[3],
+            'name': r[4],
+            'description': r[5],
+            'notes': r[6],
+            'resource_url': r[7]
+        } for r in results_technics
     }
+
     output_stands = {
-        r[2]: {'id_stand':r[2],'name':r[3],'description':r[4],'illustration_url':r[5],'notes':r[6]}
-        for r in results_stands
+        r[2]: {
+            'id_stand': r[2],
+            'name': r[3],
+            'description': r[4],
+            'illustration_url': r[5],
+            'notes': r[6]
+        } for r in results_stands
     }
+
     output_strikingparts = {
-        r[2]: {'id_part':r[2],'name':r[3],'translation':r[4],'description':r[5],'notes':r[6],'resource_url':r[7]}
-        for r in results_strikingparts
+        r[2]: {
+            'id_part': r[2],
+            'name': r[3],
+            'translation': r[4],
+            'description': r[5],
+            'notes': r[6],
+            'resource_url': r[7]
+        } for r in results_strikingparts
     }
+
     output_targets = {
-        r[2]: {'id_target':r[2],'name':r[3],'original_name':r[4],'description':r[5],'notes':r[6],'resource_url':r[7]}
-        for r in results_targets
+        r[2]: {
+            'id_target': r[2],
+            'name': r[3],
+            'original_name': r[4],
+            'description': r[5],
+            'notes': r[6],
+            'resource_url': r[7]
+        } for r in results_targets
     }
 
     maxrel = max(
@@ -522,12 +549,12 @@ def findernew(search: str = ""):
         [r[0] for r in results_technics] +
         [r[0] for r in results_stands] +
         [r[0] for r in results_strikingparts]
-    )
+    ) if (results_targets or results_technics or results_stands or results_strikingparts) else 1
 
-    relevance_results_targets = {r[2]:{"abs_relevance":r[0], "relative_relevance":r[0]/maxrel} for r in results_targets}
-    relevance_results_technics = {r[2]:{"abs_relevance":r[0], "relative_relevance":r[0]/maxrel} for r in results_technics}
-    relevance_results_stands = {r[2]:{"abs_relevance":r[0], "relative_relevance":r[0]/maxrel} for r in results_stands}
-    relevance_results_strikingparts = {r[2]:{"abs_relevance":r[0], "relative_relevance":r[0]/maxrel} for r in results_strikingparts}
+    relevance_results_targets = {r[2]: {"abs_relevance": r[0], "relative_relevance": r[0]/maxrel} for r in results_targets}
+    relevance_results_technics = {r[2]: {"abs_relevance": r[0], "relative_relevance": r[0]/maxrel} for r in results_technics}
+    relevance_results_stands = {r[2]: {"abs_relevance": r[0], "relative_relevance": r[0]/maxrel} for r in results_stands}
+    relevance_results_strikingparts = {r[2]: {"abs_relevance": r[0], "relative_relevance": r[0]/maxrel} for r in results_strikingparts}
 
     return {
         "ts": search,
@@ -541,6 +568,7 @@ def findernew(search: str = ""):
         "Stands": output_stands,
         "Striking_parts": output_strikingparts
     }
+
 
 
 @app.get("/technic_inventory")
