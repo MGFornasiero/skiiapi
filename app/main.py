@@ -14,13 +14,12 @@ print(uri)
 
 @app.get("/")
 def read_root():
+    """Returns a welcome message."""
     return {"Hello": "Karate!!!"}
 
 @app.get("/grade_id/{gradetype}/{grade}")
 def read_gradeid(gradetype:str ,grade: int):
-    """
-    da compilare
-    """
+    """Retrieves the ID for a given grade and grade type."""
     query = f"SELECT get_gradeid({grade},'{gradetype}');" 
     conn = psycopg2.connect(uri)
     cur = conn.cursor()
@@ -33,9 +32,7 @@ def read_gradeid(gradetype:str ,grade: int):
 
 @app.get("/numberofkihon/{grade_id}")
 def read_kihonsequencedomain(grade_id: int ):
-    """
-    da compilare
-    """
+    """Retrieves the number of kihon sequences for a given grade ID."""
     conn = psycopg2.connect(uri)
     cur = conn.cursor()
     cur.execute("SELECT public.get_nkihon(%s);", (grade_id,))
@@ -50,9 +47,7 @@ def read_kihonsequencedomain(grade_id: int ):
 
 @app.get("/kihon_list/{grade_id}/{sequenza}")
 def kihon_dtls(grade_id: int , sequenza: int):
-    """
-    da compilare
-    """
+    """Retrieves the details for a specific kihon sequence (sequenza) of a given grade."""
     q_step =f"""
     SELECT id_sequence,
            inventory_id,
@@ -84,9 +79,9 @@ def kihon_dtls(grade_id: int , sequenza: int):
     result_steps = cur.fetchall()
     cur.execute(q_tx)
     result_tx = cur.fetchall()
-    cur.execute(f"SELECT notes FROM ski.kihon_inventory WHERE grade_id = {grade_id} and number = {sequenza};") #rivedere la query 
+    cur.execute(f"SELECT get_kihonnotes({grade_id} ,{sequenza});") #da implementare nel json di ritorno
     result_note = cur.fetchone()
-    cur.execute(f"SELECT grade,gtype FROM public.get_grade({grade_id});") #sostitu
+    cur.execute(f"SELECT grade,gtype FROM public.get_grade({grade_id});") 
     grade_data = cur.fetchone()
     cur.close()
     conn.close()
@@ -125,6 +120,7 @@ def kihon_dtls(grade_id: int , sequenza: int):
     grade = f"{grade_data[0]}° {grade_data[1]}"
     return {"grade": grade, 
         "grade_id": grade_id, 
+        "note": result_note[0], # vedere se funziona ancora il FE
         "sequenza_n":sequenza,
         "tecniche":s_results , 
         "transactions":tx_results ,
@@ -134,9 +130,7 @@ def kihon_dtls(grade_id: int , sequenza: int):
 
 @app.get("/kihons/{grade_id}")
 def kihon(grade_id: int):
-    """
-    da compilare
-    """
+    """Retrieves all kihon techniques for a given grade ID."""
     query = f"""
     SELECT number,
            seq_num,
@@ -180,9 +174,7 @@ def kihon(grade_id: int):
 
 @app.get("/kata/{kata_id}")
 def kata(kata_id: int):
-    """
-    da compilare
-    """
+    """Retrieves the sequence steps and transitions for a given kata ID."""
     conn = psycopg2.connect(uri)
     cur = conn.cursor()
     cur.execute(f"SELECT id_sequence, kata_id, seq_num, stand_id, posizione, guardia, facing, Tecniche, embusen, kiai, notes FROM public.get_katasequence({kata_id});")
@@ -214,7 +206,8 @@ def kata(kata_id: int):
     transaction = {
         res[0]:{
             "tempo":res[3],
-            "direction":res[4]
+            "direction":res[4],
+            "note":res[5]
         } for res in tx_result
     }
     
@@ -240,9 +233,9 @@ def kata(kata_id: int):
 
 @app.get("/grade_inventory")
 def grade_inventory():
+    """Retrieves the inventory of all available grades."""
     conn = psycopg2.connect(uri)
     cur = conn.cursor()
-    #cur.execute("SELECT grade,gtype, id_grade FROM ski.grades;") #sostituire con funzione public.show_gradeinventory
     cur.execute("SELECT grade, gtype, id_grade FROM public.show_gradeinventory();")
 
     results = cur.fetchall()
@@ -253,9 +246,9 @@ def grade_inventory():
 
 @app.get("/kata_inventory")
 def kata_inventory():
+    """Retrieves the inventory of all available katas."""
     conn = psycopg2.connect(uri)
     cur = conn.cursor()
-    #cur.execute("SELECT  id_kata , kata ,serie , starting_leg , notes , resource_url FROM ski.Kata_inventory;") #sostituire con funzione public.show_katainventory
     cur.execute("SELECT id_kata, kata, serie, starting_leg, notes, resource_url FROM public.show_katainventory();")
     results = cur.fetchall()
     cur.close()
@@ -265,6 +258,7 @@ def kata_inventory():
 
 @app.get("/info_technic/{item_id}") 
 def get_info_technic(item_id: int):
+    """Retrieves information about a specific technic by its ID."""
     conn = psycopg2.connect(uri)
     cur = conn.cursor()
     cur.execute(f"SELECT id_technic, waza, name, description, notes, resource_url FROM public.get_technic_info({item_id});")
@@ -280,6 +274,7 @@ def get_info_technic(item_id: int):
 
 @app.get("/info_stand/{item_id}")
 def get_info_stand(item_id: int):
+    """Retrieves information about a specific stand (position) by its ID."""
     conn = psycopg2.connect(uri)
     cur = conn.cursor()
     cur.execute(f"SELECT id_stand, name, description, illustration_url, notes FROM get_stand_info({item_id});")
@@ -295,6 +290,7 @@ def get_info_stand(item_id: int):
 
 @app.get("/info_strikingparts/{item_id}")
 def get_info_strikingparts(item_id: int):
+    """Retrieves information about a specific striking part by its ID."""
     conn = psycopg2.connect(uri)
     cur = conn.cursor()
     cur.execute(f"SELECT id_part, name, translation, description, notes, resource_url FROM get_strikingparts_info({item_id});")
@@ -311,6 +307,7 @@ def get_info_strikingparts(item_id: int):
 
 @app.get("/info_target/{item_id}")
 def get_info_target(item_id: int):
+    """Retrieves information about a specific target by its ID."""
     conn = psycopg2.connect(uri)
     cur = conn.cursor()
     cur.execute(f"SELECT id_target, name, original_name, description, notes, resource_url FROM get_target_info({item_id});")
@@ -324,10 +321,12 @@ def get_info_target(item_id: int):
     return {"id":item_id,"info_target":row}
 
 
-@app.get("/finder")
-def finder(search:str = ""):
+@app.get("/finderold")
+def finderold(search:str = ""):
     """
-    segnaposto per l'endpoint ma decidere meglio l'implementazione
+    Performs a full-text search across targets, technics, stands, and striking parts.
+    
+    This is an older version of the finder endpoint.
     """
     query_targets = f"""
     WITH ts AS (
@@ -475,8 +474,9 @@ def finder(search:str = ""):
             "Striking_parts":results_strikingparts
     }
 
-@app.get("/findernew")
-def findernew(search: str = ""):
+@app.get("/finder")
+def finder(search: str = ""):
+    """Performs a full-text search across targets, technics, stands, and striking parts."""
     conn = psycopg2.connect(uri)
     cur = conn.cursor()
 
@@ -569,6 +569,7 @@ def findernew(search: str = ""):
 
 @app.get("/technic_inventory")
 def info_technic_inventory():
+    """Retrieves the inventory of all technics."""
     conn = psycopg2.connect(uri)
     cur = conn.cursor()
     cur.execute("SELECT id_technic, waza, name, description, notes, resource_url FROM public.get_technics();")
@@ -593,6 +594,7 @@ def info_technic_inventory():
 
 @app.get("/stand_inventory")
 def get_stand_inventory():
+    """Retrieves the inventory of all stands."""
     conn = psycopg2.connect(uri)
     cur = conn.cursor()
     cur.execute("SELECT id_stand, name, description, illustration_url, notes FROM public.get_stands();")
@@ -615,9 +617,9 @@ def get_stand_inventory():
 
 @app.get("/strikingparts_inventory")
 def get_strikingparts_inventory():
+    """Retrieves the inventory of all striking parts."""
     conn = psycopg2.connect(uri)
     cur = conn.cursor()
-    #cur.execute(f"SELECT id_part, name, translation, description, notes, resource_url FROM ski.strikingparts;")
     cur.execute("SELECT id_part, name, translation, description, notes, resource_url FROM public.get_strikingparts();")
     results = cur.fetchall()
     cur.close()
@@ -638,9 +640,9 @@ def get_strikingparts_inventory():
 
 @app.get("/target_inventory")
 def get_target_inventory():
+    """Retrieves the inventory of all targets."""
     conn = psycopg2.connect(uri)
     cur = conn.cursor()
-    #cur.execute(f"SELECT id_target, name, original_name, description, notes, resource_url FROM ski.targets;")
     cur.execute("SELECT id_target, name, original_name, description, notes, resource_url FROM public.get_targets();")
     results = cur.fetchall()
     cur.close()
@@ -657,4 +659,3 @@ def get_target_inventory():
         return {"targets_inventory":output}
     else:
         return {"targets_inventory":[]}
-
