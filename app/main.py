@@ -177,59 +177,73 @@ def kata(kata_id: int):
     """Retrieves the sequence steps and transitions for a given kata ID."""
     conn = psycopg2.connect(uri)
     cur = conn.cursor()
-    cur.execute(f"SELECT id_sequence, kata_id, seq_num, stand_id, posizione, guardia, facing, Tecniche, embusen, kiai, notes FROM public.get_katasequence({kata_id});")
+    cur.execute(
+        "SELECT id_sequence, kata_id, seq_num, stand_id, posizione, guardia, facing, Tecniche, embusen, kiai, notes, remarks, resources, resource_url FROM public.get_katasequence(%s);",
+        (kata_id,)
+    )
     steps_result = cur.fetchall()
-    cur.execute(f"SELECT id_tx, from_sequence, to_sequence, tempo, direction, notes FROM public.get_katatx({kata_id});")
+    cur.execute(
+        "SELECT id_tx, from_sequence, to_sequence, tempo, direction, notes, remarks, resources, resource_url FROM public.get_katatx(%s);",
+        (kata_id,)
+    )
     tx_result = cur.fetchall()
-    cur.execute("SELECT kata, serie, starting_leg FROM public.get_katainfo(%s);", (kata_id,))
-
+    cur.execute("SELECT kata, serie, starting_leg, notes, remarks, resources, resource_url FROM public.get_katainfo(%s);", (kata_id,))
     info = cur.fetchone()
     cur.close()
     conn.close()
-   
+
     res_steps = {
-        step[2]:{
-            'id_sequence' : step[0] , 
-            'kata_id' : step[1] , 
-            'seq_num' : step[2] , 
-            'stand_id' : step[3] , 
-            'posizione' : step[4] , 
-            'guardia' : step[5] , 
-            'facing' : step[6] , 
-            'tecniche' : step[7] , 
-            'embusen' : step[8] , 
-            'kiai' : step[9],
-            'notes':step[10]
-        } for step in  steps_result
-    }
-    
-    transaction = {
-        res[0]:{
-            "tempo":res[3],
-            "direction":res[4],
-            "note":res[5]
-        } for res in tx_result
-    }
-    
-    tx_mapping_to = {
-        res[2]:res[0] for res in tx_result
-    }
-    
-    tx_mapping_from = {
-        res[1]:res[0] for res in tx_result
-    }
-    
-    return {
-        "kata_id": kata_id,
-        "kata_name":info[0],
-        "serie":info[1], 
-        "Gamba":info[2], 
-        "steps":res_steps , 
-        "transactions":transaction ,
-        "transactions_mapping_from":tx_mapping_from,
-        "transactions_mapping_to":tx_mapping_to
+        step[2]: {
+            'id_sequence': step[0],
+            'kata_id': step[1],
+            'seq_num': step[2],
+            'stand_id': step[3],
+            'posizione': step[4],
+            'guardia': step[5],
+            'facing': step[6],
+            'tecniche': step[7],
+            'embusen': step[8],
+            'kiai': step[9],
+            'notes': step[10],
+            'remarks': step[11],
+            'resources': step[12],
+            'resource_url': step[13]
+        } for step in steps_result
     }
 
+    transaction = {
+        res[0]: {
+            "tempo": res[3],
+            "direction": res[4],
+            "note": res[5],
+            "remarks": res[6],
+            "resources": res[7],
+            "resource_url": res[8]
+        } for res in tx_result
+    }
+
+    tx_mapping_to = {
+        res[2]: res[0] for res in tx_result
+    }
+
+    tx_mapping_from = {
+        res[1]: res[0] for res in tx_result
+    }
+
+    return {
+        "kata_id": kata_id,
+        "kata_name": info[0],
+        "serie": info[1],
+        "Gamba": info[2],
+        "notes": info[3],
+        "remarks": info[4],
+        "resources": info[5],
+        "resource_url": info[6],
+        "steps": res_steps,
+        "transactions": transaction,
+        "transactions_mapping_from": tx_mapping_from,
+        "transactions_mapping_to": tx_mapping_to
+    }
 
 @app.get("/grade_inventory")
 def grade_inventory():
@@ -249,7 +263,7 @@ def kata_inventory():
     """Retrieves the inventory of all available katas."""
     conn = psycopg2.connect(uri)
     cur = conn.cursor()
-    cur.execute("SELECT id_kata, kata, serie, starting_leg, notes, resource_url FROM public.show_katainventory();")
+    cur.execute("SELECT id_kata, kata, serie, starting_leg, notes, remarks, resources, resource_url FROM public.show_katainventory();")
     results = cur.fetchall()
     cur.close()
     conn.close()
