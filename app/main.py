@@ -189,6 +189,10 @@ def kata(kata_id: int):
     tx_result = cur.fetchall()
     cur.execute("SELECT kata, serie, starting_leg, notes, remarks, resources, resource_url FROM public.get_katainfo(%s);", (kata_id,))
     info = cur.fetchone()
+    cur.execute("SELECT id_bunkaisequence, bunkai_id, kata_sequence_id, description, notes, resource_url FROM public.get_bunkais(%s);", (kata_id,))
+    bunkai_result = cur.fetchall()
+    print(bunkai_result)
+
     cur.close()
     conn.close()
 
@@ -285,6 +289,29 @@ def get_info_technic(item_id: int):
         row = {'id_technic':None, 'waza':None, 'name':None, 'description':None, 'notes':None, 'resource_url':None}
     return {"id":item_id,"info_technic":row}
 
+@app.get("/technics_decomposition/{item_id}")
+def get_technic_decomposition(item_id: int):
+    """Retrieves the decomposition of a specific technic by its ID."""
+    conn = psycopg2.connect(uri)
+    cur = conn.cursor()
+    cur.execute(f"SELECT step_num, stand_id, technic_id, gyaku, target_hgt, notes, resource_url FROM get_technic_decomposition({item_id});")
+    results = cur.fetchall()
+    cur.close()
+    conn.close()
+    output = {
+        result[0]:{
+            'step_num':result[0], 
+            'stand_id':result[1], 
+            'technic_id':result[2], 
+            'gyaku':result[3], 
+            'target_hgt':result[4], 
+            'notes':result[5], 
+            'resource_url':result[6]
+        } for result in results}
+    if results:
+        return {"id":item_id,"technic_decomposition":output}
+    else:
+        return {"id":item_id,"technic_decomposition":[]}
 
 @app.get("/info_stand/{item_id}")
 def get_info_stand(item_id: int):
@@ -334,159 +361,6 @@ def get_info_target(item_id: int):
         row =  {'id_target':None, 'name':None, 'original_name':None, 'description':None, 'notes':None, 'resource_url':None}
     return {"id":item_id,"info_target":row}
 
-
-@app.get("/finderold")
-def finderold(search:str = ""):
-    """
-    Performs a full-text search across targets, technics, stands, and striking parts.
-    
-    This is an older version of the finder endpoint.
-    """
-    query_targets = f"""
-    WITH ts AS (
-        SELECT id,
-            ski.ts_normalizer(name_rank,description_rank,notes_rank) AS pertinenza
-        FROM ski.get_ts_targets($ts${search}$ts$)
-        ORDER BY pertinenza
-    )
-    SELECT ts.pertinenza ,
-    ts.pertinenza / (SELECT MAX(pertinenza) FROM ts ) AS pertinenza_relativa ,
-        tbl.*
-    FROM ts
-    INNER JOIN ski.targets AS tbl
-    ON ts.id = tbl.id_target;
-    """
-    query_technics = f"""
-    WITH ts AS (
-        SELECT id,
-            ski.ts_normalizer(name_rank,description_rank,notes_rank) AS pertinenza
-        FROM ski.get_ts_technics($ts${search}$ts$)
-        ORDER BY pertinenza
-    )
-    SELECT ts.pertinenza ,
-    ts.pertinenza / (SELECT MAX(pertinenza) FROM ts ) AS pertinenza_relativa ,
-        tbl.*
-    FROM ts
-    INNER JOIN ski.technics AS tbl
-    ON ts.id = tbl.id_technic;
-    """
-    query_stands = f"""
-    WITH ts AS (
-        SELECT id,
-            ski.ts_normalizer(name_rank,description_rank,notes_rank) AS pertinenza
-        FROM ski.get_ts_stands($ts${search}$ts$)
-        ORDER BY pertinenza
-    )
-    SELECT ts.pertinenza ,
-    ts.pertinenza / (SELECT MAX(pertinenza) FROM ts ) AS pertinenza_relativa ,
-        tbl.*
-    FROM ts
-    INNER JOIN ski.stands AS tbl
-    ON ts.id = tbl.id_stand;
-    """
-
-    query_strikingparts = f"""
-    WITH ts AS (
-        SELECT id,
-            ski.ts_normalizer(name_rank,description_rank,notes_rank) AS pertinenza
-        FROM ski.get_ts_strikingparts($ts${search}$ts$)
-        ORDER BY pertinenza
-    )
-    SELECT ts.pertinenza ,
-    ts.pertinenza / (SELECT MAX(pertinenza) FROM ts ) AS pertinenza_relativa ,
-        tbl.*
-    FROM ts
-    INNER JOIN ski.strikingparts AS tbl
-    ON ts.id = tbl.id_part;
-    """
-    conn = psycopg2.connect(uri)
-    cur = conn.cursor()
-    cur.execute(query_targets)
-    results_targets = cur.fetchall()
-    cur.close()
-    
-    cur = conn.cursor()
-    cur.execute(query_technics)
-    results_technics = cur.fetchall()
-    cur.close()
-    
-    cur = conn.cursor()
-    cur.execute(query_stands)
-    results_stands = cur.fetchall()
-    cur.close()
-    
-    cur = conn.cursor()
-    cur.execute(query_strikingparts)
-    results_strikingparts = cur.fetchall()
-    cur.close()
-    conn.close()
-    
-    output_technics = {
-        result[2]:{
-            'id_technic':result[2], 
-             'waza':result[3], 
-             'name':result[4], 
-             'description':result[5], 
-             'notes':result[6], 
-             'resource_url':result[7]
-            }
-        for result in results_technics}
-
-    output_stands = {
-        result[2]:{
-            'id_stand':result[2], 
-            'name':result[3], 
-            'description':result[4], 
-            'illustration_url':result[5], 
-            'notes':result[6]
-        } for result in results_stands}
-
-    output_strikingparts = {result[2]:{
-            'id_part':result[2], 
-            'name':result[3], 
-            'translation':result[4], 
-            'description':result[5], 
-            'notes':result[6], 
-            'resource_url':result[7]}
-            for result in results_strikingparts}
-
-    output_targets = {result[2]:{
-            'id_target':result[2], 
-            'name':result[3], 
-            'original_name':result[4], 
-            'description':result[5], 
-            'notes':result[6], 
-            'resource_url':result[7]
-        } for result in results_targets}
-    maxrel = max([result[0] for result in results_targets ] +
-        [result[0] for result in results_technics ] +
-        [result[0] for result in results_stands ] +
-        [result[0] for result in results_strikingparts ] 
-    )
-
-    relevance_results_targets = {
-        result[2]:{"abs_relevance" :result[0] , "relative_relevance":result[0]/maxrel } for result in  results_targets 
-    }
-    relevance_results_technics = {
-        result[2]:{"abs_relevance" :result[0] , "relative_relevance":result[0]/maxrel } for result in  results_technics 
-    }
-    relevance_results_stands = {
-        result[2]:{"abs_relevance" :result[0] , "relative_relevance":result[0]/maxrel } for result in  results_stands 
-    }
-    relevance_results_strikingparts = {
-        result[2]:{"abs_relevance" :result[0] , "relative_relevance":result[0]/maxrel } for result in results_strikingparts 
-    }
-    return {"ts": search ,
-            "max_relevance" : maxrel,
-            "Targets_relevance":relevance_results_targets , 
-            "Technics_relevance":relevance_results_technics , 
-            "Stands_relevance":relevance_results_stands , 
-            "Striking_parts_relevance":relevance_results_strikingparts,
-            "Targets":results_targets , 
-            "Technics":results_technics , 
-            "Stands":results_stands , 
-            "Striking_parts":results_strikingparts
-    }
 
 @app.get("/finder")
 def finder(search: str = ""):
