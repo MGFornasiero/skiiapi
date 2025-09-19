@@ -191,7 +191,7 @@ def kata(kata_id: int):
     info = cur.fetchone()
     cur.execute("SELECT id_bunkaisequence, bunkai_id, kata_sequence_id, description, notes, resource_url FROM public.get_bunkais(%s);", (kata_id,))
     bunkai_result = cur.fetchall()
-    print(bunkai_result)
+    print(bunkai_result) # da implementare nel json di ritorno
 
     cur.close()
     conn.close()
@@ -379,7 +379,7 @@ def finder(search: str = ""):
     results_stands = cur.fetchall()
 
     cur.execute("SELECT pertinenza, pertinenza_relativa, id_part, name, translation, description, notes, resource_url FROM public.qry_ts_strikingparts(%s);", (search,))
-    results_strikingparts = cur.fetchall()
+    results_strikingparts = cur.fetchall() 
 
     cur.close()
     conn.close()
