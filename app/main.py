@@ -1,6 +1,7 @@
 from typing import Union
 import os
 from fastapi import FastAPI
+import json
 
 #####                       NOTE                        #####
 #    the connection is set using the env variable SKIURI    #
@@ -178,21 +179,24 @@ def kata(kata_id: int):
     conn = psycopg2.connect(uri)
     cur = conn.cursor()
     cur.execute(
-        "SELECT id_sequence, kata_id, seq_num, stand_id, posizione, guardia, facing, Tecniche, embusen, kiai, notes, remarks, resources, resource_url FROM public.get_katasequence(%s);",
-        (kata_id,)
+        f"SELECT id_sequence, kata_id, seq_num, stand_id, posizione, guardia, facing, Tecniche, embusen, kiai, notes, remarks, resources, resource_url FROM public.get_katasequence({kata_id});"
     )
     steps_result = cur.fetchall()
     cur.execute(
-        "SELECT id_tx, from_sequence, to_sequence, tempo, direction, notes, remarks, resources, resource_url FROM public.get_katatx(%s);",
-        (kata_id,)
+        f"SELECT id_tx, from_sequence, to_sequence, tempo, direction, notes, remarks, resources, resource_url FROM public.get_katatx({kata_id});",
     )
     tx_result = cur.fetchall()
-    cur.execute("SELECT kata, serie, starting_leg, notes, remarks, resources, resource_url FROM public.get_katainfo(%s);", (kata_id,))
+    cur.execute(f"SELECT kata, serie, starting_leg, notes, remarks, resources, resource_url FROM public.get_katainfo({kata_id});")
     info = cur.fetchone()
-    cur.execute("SELECT id_bunkaisequence, bunkai_id, kata_sequence_id, description, notes, resource_url FROM public.get_bunkais(%s);", (kata_id,))
-    bunkai_result = cur.fetchall()
-    print(bunkai_result) # da implementare nel json di ritorno
 
+    cur.execute(f"SELECT id_bunkai, kata_id, version, name, description, notes, resource_url FROM public.get_katabunkais({kata_id});")
+    bunkai_result = cur.fetchall()
+    #cur.execute(f"SELECT id_bunkaisequence, bunkai_id, version, kata_sequence_id, description, notes, remarks, resources, resource_url FROM public.get_bunkais({kata_id});") #da implementare nel json di ritorno
+    bunkaisteps_result = cur.fetchall()
+    print(bunkai_result) # da implementare nel json di ritorno
+    #print(bunkaisteps_result) # da implementare nel json di ritorno
+    bunkai_ids = [res[0] for res in bunkai_result] # da implementare nel json di ritorno
+    print(bunkai_ids)
     cur.close()
     conn.close()
 
@@ -246,7 +250,35 @@ def kata(kata_id: int):
         "steps": res_steps,
         "transactions": transaction,
         "transactions_mapping_from": tx_mapping_from,
-        "transactions_mapping_to": tx_mapping_to
+        "transactions_mapping_to": tx_mapping_to,
+        "bunkai_ids": bunkai_ids
+    }
+
+@app.get("/bunkai_dtls/{bunkai_id}")
+def bunkaisteps(bunkai_id: int):
+    """Retrieves the sequence steps for a given bunkai ID."""  
+    conn = psycopg2.connect(uri)
+    cur = conn.cursor()
+    cur.execute(f"SELECT id_bunkaisequence, bunkai_id, kata_sequence_id, description, notes, remarks, resources, resource_url FROM public.get_bunkai({bunkai_id});")
+    steps_result = cur.fetchall()
+    cur.close()
+    conn.close()
+    print(steps_result)
+    res_steps = {
+        step[2]: {
+            'id_bunkaisequence': step[0],
+            'bunkai_id': step[1],
+            'kata_sequence_id': step[2],
+            'description': step[3],
+            'notes': step[4],
+            'remarks': step[5],
+            'resources': step[6],
+            'resource_url': step[7]
+        } for step in steps_result
+    }
+    return {
+        "bunkai_id": bunkai_id,
+        "bunkaisteps": res_steps
     }
 
 @app.get("/grade_inventory")
