@@ -189,13 +189,8 @@ def kata(kata_id: int):
     cur.execute(f"SELECT kata, serie, starting_leg, notes, remarks, resources, resource_url FROM public.get_katainfo({kata_id});")
     info = cur.fetchone()
 
-    cur.execute(f"SELECT id_bunkai, kata_id, version, name, description, notes, resource_url FROM public.get_katabunkais({kata_id});")
-    bunkai_result = cur.fetchall()
-    #cur.execute(f"SELECT id_bunkaisequence, bunkai_id, version, kata_sequence_id, description, notes, remarks, resources, resource_url FROM public.get_bunkais({kata_id});") #da implementare nel json di ritorno
-    bunkaisteps_result = cur.fetchall()
-    print(bunkai_result) # da implementare nel json di ritorno
-    #print(bunkaisteps_result) # da implementare nel json di ritorno
-    bunkai_ids = [res[0] for res in bunkai_result] # da implementare nel json di ritorno
+    cur.execute(f"SELECT id_bunkai FROM public.get_katabunkais({kata_id});")
+    bunkai_ids  = [res[0] for res in cur.fetchall()] # da implementare nel json di ritorno
     print(bunkai_ids)
     cur.close()
     conn.close()
@@ -253,17 +248,36 @@ def kata(kata_id: int):
         "transactions_mapping_to": tx_mapping_to,
         "bunkai_ids": bunkai_ids
     }
+@app.get("/bunkai_inventory/{kata_id}")
+def bunkai_inventory(kata_id: int):
+    """Retrieves the inventory of all bunkais for a given kata ID."""
+    conn = psycopg2.connect(uri)
+    cur = conn.cursor()
+    cur.execute(f"SELECT id_bunkai, kata_id, version, name, description, notes,resources, resource_url FROM public.get_katabunkais({kata_id});")
+    bunkai_result = cur.fetchall()
+    cur.close()
+    conn.close()
+    print(bunkai_result)
+    bunkai_inventory = {res[0]:{
+        'kata_id': res[1],
+        'version': res[2],
+        'name': res[3],
+        'description': res[4],
+        'notes': res[5],
+        'resources': json.loads(str(res[6])) if res[6] else {},
+        'resource_url': res[7]
+    } for res in bunkai_result}
+    return {"kata_id": kata_id, "bunkai_inventory": bunkai_inventory}
 
 @app.get("/bunkai_dtls/{bunkai_id}")
 def bunkaisteps(bunkai_id: int):
     """Retrieves the sequence steps for a given bunkai ID."""  
     conn = psycopg2.connect(uri)
     cur = conn.cursor()
-    cur.execute(f"SELECT id_bunkaisequence, bunkai_id, kata_sequence_id, description, notes, remarks, resources, resource_url FROM public.get_bunkai({bunkai_id});")
+    cur.execute(f"SELECT id_bunkaisequence, bunkai_id, kata_sequence_id, description, notes, array_to_json(remarks) as remarks, resources, resource_url FROM public.get_bunkai({bunkai_id});")
     steps_result = cur.fetchall()
     cur.close()
     conn.close()
-    print(steps_result)
     res_steps = {
         step[2]: {
             'id_bunkaisequence': step[0],
@@ -276,10 +290,7 @@ def bunkaisteps(bunkai_id: int):
             'resource_url': step[7]
         } for step in steps_result
     }
-    return {
-        "bunkai_id": bunkai_id,
-        "bunkaisteps": res_steps
-    }
+    return {"bunkai_id": bunkai_id, "bunkai_steps": res_steps}
 
 @app.get("/grade_inventory")
 def grade_inventory():
