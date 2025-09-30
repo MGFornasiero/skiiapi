@@ -1,6 +1,7 @@
 from typing import Union
 import os
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi.security import APIKeyHeader
 import json
 
 #####                       NOTE                        #####
@@ -8,6 +9,28 @@ import json
 #############################################################
 
 app = FastAPI()
+
+# --- API Key Security ---
+# It's recommended to set this in your environment for production
+SECRET_API_KEY = os.environ.get("API_KEY", "bushido_secret_key")
+
+API_KEY_NAME = "BUSHIDO-Key"
+
+api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=True)
+
+async def get_api_key(api_key: str = Depends(api_key_header)):
+    """
+    Dependency that checks for the presence and validity of an API key in the request header.
+    """
+    if api_key != SECRET_API_KEY:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid API Key",
+            headers={"WWW-Authenticate": "API-Key"},
+        )
+    return api_key
+# --- End API Key Security ---
+
 
 import psycopg2
 uri = os.environ['SKIURI']
@@ -590,3 +613,11 @@ def get_target_inventory():
         return {"targets_inventory":output}
     else:
         return {"targets_inventory":[]}
+
+@app.get("/secure/", dependencies=[Depends(get_api_key)])
+def get_secure_data():
+    """
+    An example of a route secured with an API key.
+    Only requests with a valid `BUSHIDO-Key` header will be able to access this.
+    """
+    return {"data": "This is secure data, accessible only with a valid API key."}
