@@ -613,6 +613,35 @@ def get_target_inventory():
         return {"targets_inventory":output}
     else:
         return {"targets_inventory":[]}
+    
+
+@app.get("/utils/present_kata/{kata_id}")  
+def present_kata(kata_id: int):
+    """Checks if a kata with the given ID exists in the database."""
+    conn = psycopg2.connect(uri)
+    cur = conn.cursor()
+    cur.execute(f"SELECT * FROM public.info_kata({kata_id});")
+    result = cur.fetchall()
+    cur.close()
+    conn.close()
+
+    present = {res[0]:{
+        "id_sequence" :  res[0],
+        "kata_id" :  res[1],
+        "seq_num" :  res[2],
+        "stand_id" :  res[3],
+        "stand_name" :  res[4],
+        "speed" :  res[5],
+        "side" :  res[6],
+        "hips" :  res[7],
+        "embusen" :  res[8],
+        "facing" :  res[9],
+        "kiai" :  res[10],
+        "notes" :  res[11],
+        "Tecniche" :  res[12]
+    } for res in result}
+    return {"info": present}
+
 
 @app.get("/secure/", dependencies=[Depends(get_api_key)])
 def get_secure_data():
