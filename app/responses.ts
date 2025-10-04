@@ -105,17 +105,25 @@ export interface KataStep {
   embusen: number;
   kiai: boolean;
   notes: string | null;
-  remarks: any; // Type could be more specific if the structure is known
-  resources: any; // Type could be more specific if the structure is known
+  remarks: DetailedNote[] | null;
+  resources: Record<string, any> | null;
   resource_url: string | null;
 }
 
-export interface KataTransaction {
-  tempo: string;
-  direction: string;
-  note: string | null;
-  remarks: any; // Type could be more specific if the structure is known
-  resources: any; // Type could be more specific if the structure is known
+export interface KataDetails {
+  id_sequence: number;
+  kata_id: number;
+  seq_num: number;
+  stand_id: number;
+  posizione: string;
+  guardia: string;
+  facing: number;
+  tecniche: any; // Type could be more specific if the structure is known
+  embusen: number;
+  kiai: boolean;
+  notes: string | null;
+  remarks: DetailedNote[] | null;
+  resources: Record<string, any> | null;
   resource_url: string | null;
 }
 
@@ -125,22 +133,49 @@ export interface KataDetails {
   serie: string;
   Gamba: string;
   notes: string | null;
-  remarks: any; // Type could be more specific if the structure is known
-  resources: any; // Type could be more specific if the structure is known
+  remarks: DetailedNote[] | null;
+  resources: Record<string, any> | null;
   resource_url: string | null;
   steps: Record<string, KataStep>;
   transactions: Record<string, KataTransaction>;
   transactions_mapping_from: Record<string, number>;
   transactions_mapping_to: Record<string, number>;
-  bunkai_ids: number[];
+  bunkai_ids: Record<string, BunkaiSummary>;
 }
+
+
+export interface KataTransaction {
+  tempo: string;
+  direction: string;
+  note: string | null;
+  remarks: DetailedNote[] | null;
+  resources: Record<string, any> | null;
+  resource_url: string | null;
+}
+
+export interface BunkaiSummary {
+  version: number;
+  name: string;
+  description: string | null;
+  notes: string | null;
+  resources: Record<string, any> | null;
+}
+
+export interface DetailedNote {
+  arto: string; // Corresponds to 'public.arti' enum/type in the DB
+  description: string | null;
+  explatation: string | null; // Typo from DB, likely 'explanation'
+  note: string | null;
+}
+
+
 export interface BunkaiInfo {
   kata_id: number;
   version: number;
   name: string;
   description: string | null;
   notes: string | null;
-  resources: Record<string, any>; // Assuming a JSON object
+  resources: Record<string, any> | null;
   resource_url: string | null;
 }
 
@@ -155,8 +190,8 @@ export interface BunkaiStep {
   kata_sequence_id: number;
   description: string | null;
   notes: string | null;
-  remarks: any; // JSON array from DB
-  resources: any; // Type could be more specific
+  remarks: DetailedNote[] | null;
+  resources: Record<string, any> | null;
   resource_url: string | null;
 }
 

@@ -4,6 +4,8 @@ from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import APIKeyHeader
 import json
 
+from app.models import Target
+
 #####                       NOTE                        #####
 #    the connection is set using the env variable SKIURI    #
 #############################################################
@@ -13,16 +15,30 @@ app = FastAPI()
 # --- API Key Security ---
 # It's recommended to set this in your environment for production
 SECRET_API_KEY = os.environ.get("API_KEY", "bushido_secret_key")
+SECRET_ADMIN_API_KEY = os.environ.get("API_ADMINKEY", "bushido_admin_secretkey")
 
 API_KEY_NAME = "BUSHIDO-Key"
+ADMIN_API_KEY_NAME = "BUSHIDO-AdminKey"
 
 api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=True)
+api_admin_key_header = APIKeyHeader(name=ADMIN_API_KEY_NAME, auto_error=True)
 
 async def get_api_key(api_key: str = Depends(api_key_header)):
     """
     Dependency that checks for the presence and validity of an API key in the request header.
     """
     if api_key != SECRET_API_KEY:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid API Key",
+            headers={"WWW-Authenticate": "API-Key"},
+        )
+    return api_key
+async def get_admin_api_key(api_key: str = Depends(api_admin_key_header)):
+    """
+    Dependency that checks for the presence and validity of an andmin API key in the request header.
+    """
+    if api_key != SECRET_ADMIN_API_KEY:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid API Key",
@@ -212,8 +228,11 @@ def kata(kata_id: int):
     cur.execute(f"SELECT kata, serie, starting_leg, notes, remarks, resources, resource_url FROM public.get_katainfo({kata_id});")
     info = cur.fetchone()
 
-    cur.execute(f"SELECT id_bunkai FROM public.get_katabunkais({kata_id});")
-    bunkai_ids  = [res[0] for res in cur.fetchall()] # da implementare nel json di ritorno
+    cur.execute(f"SELECT id_bunkai,version,name,description,notes,resources FROM public.get_katabunkais({kata_id});") #id_bunkai,version,name,description,notes,resources
+    bunkais_result = cur.fetchall()
+    bunkai_ids  = {
+        res[0]:{"version":res[1],"name":res[2],"description":res[3],"notes":res[4],"resources":res[5]} for res in bunkais_result
+    }
     print(bunkai_ids)
     cur.close()
     conn.close()
@@ -650,3 +669,321 @@ def get_secure_data():
     Only requests with a valid `BUSHIDO-Key` header will be able to access this.
     """
     return {"data": "This is secure data, accessible only with a valid API key."}
+
+
+from pydantic import BaseModel, Field
+from typing import Optional, List, Dict, Any
+from enum import Enum
+
+# =============================================================
+# Custom Enum Types from DDL
+# =============================================================
+
+class GradeType(str, Enum):
+    kyu = 'kyu'
+    dan = 'dan'
+
+class Sides(str, Enum):
+    sx = 'sx'
+    frontal = 'frontal'
+    dx = 'dx'
+
+class Movements(str, Enum):
+    Fwd = 'Fwd'
+    Still = 'Still'
+    Bkw = 'Bkw'
+
+class KataSeries(str, Enum):
+    Heian = 'Heian'
+    Tekki = 'Tekki'
+    Sentei = 'Sentei'
+
+class TargetHgt(str, Enum):
+    Jodan = 'Jodan'
+    Chudan = 'Chudan'
+    Gedan = 'Gedan'
+
+class WazaType(str, Enum):
+    Uke = 'Uke'
+    Uchi = 'Uchi'
+    Geri = 'Geri'
+    NA = 'NA'
+    _ = '_'
+
+class Tempo(str, Enum):
+    Legato = 'Legato'
+    Fast = 'Fast'
+    Normal = 'Normal'
+    Slow = 'Slow'
+    Breath = 'Breath'
+
+class Limbs(str, Enum):
+    Mano = 'Mano'
+    Braccio = 'Braccio'
+    Piede = 'Piede'
+    Gamba = 'Gamba'
+    Ginochio = 'Ginochio'
+    NA = 'NA'
+
+class Hips(str, Enum):
+    Hanmi = 'Hanmi'
+    Shomen = 'Shomen'
+
+class BeltColor(str, Enum):
+    bianco = 'bianco'
+    giallo = 'giallo'
+    arancio = 'arancio'
+    verde = 'verde'
+    blu = 'blu'
+    marrone = 'marrone'
+    nero = 'nero'
+
+class AbsoluteDirections(str, Enum):
+    N = 'N'
+    NE = 'NE'
+    E = 'E'
+    SE = 'SE'
+    S = 'S'
+    SO = 'SO'
+    O = 'O'
+    NO = 'NO'
+
+# =============================================================
+# Custom Composite Types from DDL
+# =============================================================
+
+class EmbusenPoints(BaseModel):
+    x: int
+    y: int
+
+class BodyPart(BaseModel):
+    limb: Limbs
+    side: Sides
+
+class DetailedNotes(BaseModel):
+    arto: BodyPart
+    description: Optional[str] = None
+    explatation: Optional[str] = None
+    note: Optional[str] = None
+
+# =============================================================
+# Domain Table Models (ski schema)
+# =============================================================
+
+class Target(BaseModel):
+    id_target: int
+    name: str
+    original_name: Optional[str] = None
+    description: Optional[str] = None
+    notes: Optional[str] = None
+    resource_url: Optional[str] = None
+
+class StrikingPart(BaseModel):
+    id_part: int
+    name: str
+    translation: Optional[str] = None
+    description: Optional[str] = None
+    notes: Optional[str] = None
+    resource_url: Optional[str] = None
+
+class Technic(BaseModel):
+    id_technic: int
+    waza: Optional[WazaType] = None
+    name: str
+    description: Optional[str] = None
+    notes: Optional[str] = None
+    resource_url: Optional[str] = None
+
+class TechnicDecomposition(BaseModel):
+    id_decomposition: int
+    technic_id: int
+    component_order: int
+    description: Optional[str] = None
+    explatations: Optional[str] = None
+    notes: Optional[str] = None
+    resource_url: Optional[str] = None
+
+class Stand(BaseModel):
+    id_stand: int
+    name: str
+    description: Optional[str] = None
+    illustration_url: Optional[str] = None
+    notes: Optional[str] = None
+
+class Grade(BaseModel):
+    id_grade: int
+    gtype: GradeType
+    grade: int = Field(..., ge=1, le=10)
+    color: Optional[BeltColor] = None
+
+class KihonInventory(BaseModel):
+    id_inventory: int
+    grade_id: int
+    number: int
+    resources: Optional[Dict[str, Any]] = None
+    notes: Optional[str] = None
+
+class KihonSequence(BaseModel):
+    id_sequence: int
+    inventory_id: int
+    seq_num: int
+    stand_id: int
+    technic_id: int
+    hips: Optional[Hips] = None
+    gyaku: Optional[bool] = None
+    target_hgt: Optional[TargetHgt] = None
+    resources: Optional[Dict[str, Any]] = None
+    notes: Optional[str] = None
+    resource_url: Optional[str] = None
+
+class KihonTx(BaseModel):
+    id_tx: int
+    from_sequence: int
+    to_sequence: int
+    movement: Optional[Movements] = None
+    resources: Optional[Dict[str, Any]] = None
+    notes: Optional[str] = None
+    tempo: Optional[Tempo] = None
+    resource_url: Optional[str] = None
+
+class KataInventory(BaseModel):
+    id_kata: int
+    kata: str
+    serie: Optional[KataSeries] = None
+    starting_leg: Sides
+    notes: Optional[str] = None
+    resources: Optional[Dict[str, Any]] = None
+    resource_url: Optional[str] = None
+
+class KataSequence(BaseModel):
+    id_sequence: int
+    kata_id: int
+    seq_num: int
+    stand_id: int
+    speed: Optional[Tempo] = None
+    side: Optional[Sides] = None
+    hips: Optional[Hips] = None
+    embusen: Optional[EmbusenPoints] = None
+    facing: Optional[AbsoluteDirections] = None
+    kiai: Optional[bool] = None
+    notes: Optional[str] = None
+    remarks: Optional[List[DetailedNotes]] = None
+    resources: Optional[Dict[str, Any]] = None
+    resource_url: Optional[str] = None
+
+class KataSequenceWaza(BaseModel):
+    id_kswaza: int
+    sequence_id: Optional[int] = None
+    arto: Optional[BodyPart] = None
+    technic_id: int
+    strikingpart_id: Optional[int] = None
+    technic_target_id: Optional[int] = None
+    notes: Optional[str] = None
+    resources: Optional[Dict[str, Any]] = None
+
+class KataTx(BaseModel):
+    id_tx: int
+    from_sequence: int
+    to_sequence: int
+    tempo: Optional[Tempo] = None
+    direction: Optional[Sides] = None
+    intermediate_stand_id: Optional[int] = None
+    notes: Optional[str] = None
+    remarks: Optional[List[DetailedNotes]] = None
+    resources: Optional[Dict[str, Any]] = None
+    resource_url: Optional[str] = None
+
+class BunkaiInventory(BaseModel):
+    id_bunkai: int
+    kata_id: int
+    version: Optional[int] = 1
+    name: str
+    description: Optional[str] = None
+    notes: Optional[str] = None
+    resources: Optional[Dict[str, Any]] = None
+    resource_url: Optional[str] = None
+
+class BunkaiSequence(BaseModel):
+    id_bunkaisequence: int
+    bunkai_id: int
+    kata_sequence_id: int
+    description: Optional[str] = None
+    notes: Optional[str] = None
+    remarks: Optional[List[DetailedNotes]] = None
+    resources: Optional[Dict[str, Any]] = None
+    resource_url: Optional[str] = None
+
+
+# --- POST: Insert Target ---
+@app.post("/targets", status_code=201)
+def create_target(target: Target, api_key: str = Depends(get_api_key)): #record sngolo
+    """
+    Inserts a new row into the Target table.
+    """
+    conn = psycopg2.connect(uri)
+    cur = conn.cursor()
+
+    try:
+        cur.execute(f"""INSERT INTO ski.targets (id_target, name, original_name, description, notes, resource_url)
+            VALUES ({target.id_target},'{target.name}','{target.original_name}',$${target.description}$$,$${target.notes}$$,$${target.resource_url}$$)
+            RETURNING id_target;"""
+        )
+        new_id = cur.fetchone()[0]
+        conn.commit()
+
+        return {"message": "Target created successfully", "id_target": new_id}
+
+    except psycopg2.Error as e:
+        conn.rollback()
+        raise HTTPException(status_code=400, detail=f"Database error: {e.pgerror}")
+    finally:
+        cur.close()
+        conn.close()
+
+from typing import List
+
+@app.post("/targets/bulk", status_code=201)
+def create_targets_bulk(targets: List[Target], api_key: str = Depends(get_admin_api_key)): #blocco di record
+    """
+    Inserts multiple Target rows in a single transaction.
+    """
+    conn = psycopg2.connect(uri)
+    cursor = conn.cursor()
+
+    try:
+        insert_query = """
+            INSERT INTO Target (id_target, name, original_name, description, notes, resource_url)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """
+        data = [
+            (
+                t.id_target,
+                t.name,
+                t.original_name,
+                t.description,
+                t.notes,
+                t.resource_url
+            )
+            for t in targets
+        ]
+
+        cursor.executemany(insert_query, data)
+        conn.commit()
+
+        return {"message": f"{len(targets)} targets inserted successfully"}
+
+    except psycopg2.Error as e:
+        conn.rollback()
+        raise HTTPException(status_code=400, detail=f"Database error: {e.pgerror}")
+    finally:
+        cursor.close()
+        conn.close()
+
+# valutare se usare
+def get_db_connection():
+    """Establishes and returns a PostgreSQL connection."""
+    try:
+        conn = psycopg2.connect(uri)
+        return conn
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database connection error: {e}")
