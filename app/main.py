@@ -37,13 +37,14 @@ async def get_api_key(api_key: str = Depends(api_key_header)):
     """
     Dependency that checks for the presence and validity of an API key in the request header.
     """
-    if api_key != SECRET_API_KEY:
+    if api_key == SECRET_API_KEY or api_key == SECRET_ADMIN_API_KEY:
+        return api_key
+    else:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid API Key",
             headers={"WWW-Authenticate": "API-Key"},
         )
-    return api_key
 async def get_admin_api_key(api_key: str = Depends(api_admin_key_header)):
     """
     Dependency that checks for the presence and validity of an andmin API key in the request header.
@@ -60,6 +61,7 @@ async def get_admin_api_key(api_key: str = Depends(api_admin_key_header)):
 
 import psycopg2
 uri = os.environ['SKIURI']
+admin_uri = os.environ['SKIURI'] #cambiare la variabile per un utente diverso
 print(uri)
 
 @app.get("/")
@@ -710,7 +712,7 @@ def create_target(target: Target, api_key: str = Depends(get_api_key)): #record 
 
 from typing import List
 
-@app.post("/targets/bulk", status_code=201)
+@app.post("/admin/insert/targets/bulk", status_code=201)
 def create_targets_bulk(targets: List[Target], api_key: str = Depends(get_admin_api_key)): #blocco di record
     """
     Inserts multiple Target rows in a single transaction.
