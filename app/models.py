@@ -97,8 +97,8 @@ class DetailedNotes(BaseModel):
 # Domain Table Models (ski schema) and functions (public schema)
 # =============================================================
 
-# ski.targets -> public.get_targets(), public.get_target_info(), public.qry_ts_targets()
-class Target(BaseModel):
+
+class Target(BaseModel): # ski.targets() , public.get_targets(), public.get_target_info(), public.qry_ts_targets()
     id_target: int
     name: str
     original_name: Optional[str] = None
@@ -106,8 +106,8 @@ class Target(BaseModel):
     notes: Optional[str] = None
     resource_url: Optional[str] = None
 
-# ski.strikingparts -> public.get_strikingparts(), public.get_strikingparts_info(), public.qry_ts_strikingparts()
-class StrikingPart(BaseModel):
+
+class StrikingPart(BaseModel): # ski.strikingparts() , public.get_strikingparts(), public.get_strikingparts_info(), public.qry_ts_strikingparts()
     id_part: int
     name: str
     translation: Optional[str] = None
@@ -115,8 +115,8 @@ class StrikingPart(BaseModel):
     notes: Optional[str] = None
     resource_url: Optional[str] = None
 
-# ski.technics -> public.get_technics(), public.get_technic_info(), public.qry_ts_technics()
-class Technic(BaseModel):
+
+class Technic(BaseModel): # ski.technics() , public.get_technics(), public.get_technic_info(), public.qry_ts_technics()
     id_technic: int
     waza: Optional[WazaType] = None
     name: str
@@ -133,23 +133,23 @@ class TechnicDecomposition(BaseModel):
     notes: Optional[str] = None
     resource_url: Optional[str] = None
 
-# ski.stands -> public.get_stands(), public.get_stand_info(), public.qry_ts_stands()
-class Stand(BaseModel):
+
+class Stand(BaseModel):# ski.stands() , public.get_stands(), public.get_stand_info(), public.qry_ts_stands()
     id_stand: int
     name: str
     description: Optional[str] = None
     illustration_url: Optional[str] = None
     notes: Optional[str] = None
 
-# ski.grades -> public.get_grade()
-class Grade(BaseModel):
+
+class Grade(BaseModel): # ski.grades() , public.get_grade()
     id_grade: int
     gtype: GradeType
     grade: int = Field(..., ge=1, le=10)
     color: Optional[BeltColor] = None
 
-# ski.kihon_inventory -> public.get_kihons()
-class KihonInventory(BaseModel):
+
+class KihonInventory(BaseModel): # ski.kihon_inventory() , public.get_kihons()
     id_inventory: int
     grade_id: int
     number: int
@@ -214,8 +214,8 @@ class KihonFormatted(BaseModel): #kihon_frmlist()
     target_hgt: TargetHgt | None
     notes: str | None
 
-# ski.kata_inventory -> public.show_katainventory(), public.get_katainfo()
-class KataInventory(BaseModel):
+
+class KataInventory(BaseModel): # ski.kata_inventory() , public.show_katainventory(), public.get_katainfo()
     id_kata: int
     kata: str
     serie: Optional[KataSeries] = None
@@ -288,8 +288,8 @@ class KataSequenceStep(BaseModel): #get_katasequence()
     resources: dict | None
     resource_url: str | None
 
-# ski.bunkai_inventory -> public.get_katabunkais()
-class BunkaiInventory(BaseModel):
+
+class BunkaiInventory(BaseModel): # ski.bunkai_inventory() , public.get_katabunkais()
     id_bunkai: int
     kata_id: int
     version: Optional[int] = 1
