@@ -169,8 +169,7 @@ class KihonSequence(BaseModel):
     notes: Optional[str] = None
     resource_url: Optional[str] = None
 
-class KihonTx(BaseModel):
-
+class KihonTx(BaseModel):#get_kihon_tx()
     id_tx: int
     from_sequence: int
     to_sequence: int
@@ -192,15 +191,6 @@ class KihonStep(BaseModel): #get_kihon_steps()
     resource_url: str | None
     stand_name: str | None
     technic_name: str | None
-
-class KihonTx(BaseModel): #get_kihon_tx()
-    id_tx: int
-    from_sequence: int
-    to_sequence: int
-    movement: Movements | None
-    tempo: Tempo | None
-    notes: str | None
-    resource_url: str | None
 
 class KihonFormatted(BaseModel): #kihon_frmlist()
     number: int
