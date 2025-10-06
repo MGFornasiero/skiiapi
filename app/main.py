@@ -674,7 +674,7 @@ def present_kata(kata_id: int):
     return {"info": present}
 
 
-@app.get("/secure/", dependencies=[Depends(get_api_key)])
+@app.get("/secure/", dependencies=[Depends(get_admin_api_key)])
 def get_secure_data():
     """
     An example of a route secured with an API key.
@@ -686,11 +686,11 @@ def get_secure_data():
 
 # --- POST: Insert Target ---
 @app.post("/targets", status_code=201)
-def create_target(target: Target, api_key: str = Depends(get_api_key)): #record sngolo
+def create_target(target: Target, api_key: str = Depends(get_admin_api_key)): #record sngolo
     """
     Inserts a new row into the Target table.
     """
-    conn = psycopg2.connect(uri)
+    conn = psycopg2.connect(admin_uri)
     cur = conn.cursor()
 
     try:
@@ -710,19 +710,19 @@ def create_target(target: Target, api_key: str = Depends(get_api_key)): #record 
         cur.close()
         conn.close()
 
-from typing import List
+#from typing import List
 
 @app.post("/admin/insert/targets/bulk", status_code=201)
 def create_targets_bulk(targets: List[Target], api_key: str = Depends(get_admin_api_key)): #blocco di record
     """
     Inserts multiple Target rows in a single transaction.
     """
-    conn = psycopg2.connect(uri)
+    conn = psycopg2.connect(admin_uri)
     cursor = conn.cursor()
-
+    values = ",".join([f"({t.id_target},{t.name},{t.original_name},{t.description},{t.notes},{t.resource_url})" for t in targets])
     try:
         insert_query = """
-            INSERT INTO Target (id_target, name, original_name, description, notes, resource_url)
+            INSERT INTO ski.targets (id_target, name, original_name, description, notes, resource_url)
             VALUES (%s, %s, %s, %s, %s, %s)
         """
         data = [
@@ -748,6 +748,31 @@ def create_targets_bulk(targets: List[Target], api_key: str = Depends(get_admin_
     finally:
         cursor.close()
         conn.close()
+
+@app.get("/admin/select/targets/all", dependencies=[Depends(get_admin_api_key)])
+def select_targets():
+    """
+    """
+    conn = psycopg2.connect(admin_uri)
+    cur = conn.cursor()
+    cur.execute("SELECT id_target,name,original_name,description,notes,resource_url FROM ski.targets;")
+    results = cur.fetchall()
+    cur.close()
+    conn.close()
+    targets = [
+        Target(
+            id_target=row[0],
+            name=row[1],
+            original_name=row[2],
+            description=row[3],
+            notes=row[4],
+            resource_url=row[5],
+        )
+        for row in rows
+    ]
+    return {"message": "Target content", 
+            "target": targets
+    }
 
 # valutare se usare
 def get_db_connection():

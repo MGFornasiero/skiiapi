@@ -2,6 +2,15 @@ from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
 from enum import Enum
 
+
+def format_value(v):
+    if v is None:
+        return "NULL"
+    if isinstance(v, str):
+        # Escape single quotes in string values for SQL safety
+        return f"$${v}$$"
+    return str(v)
+
 # =============================================================
 # Custom Enum Types from DDL
 # =============================================================
@@ -105,6 +114,10 @@ class Target(BaseModel): # ski.targets() , public.get_targets(), public.get_targ
     description: Optional[str] = None
     notes: Optional[str] = None
     resource_url: Optional[str] = None
+    
+    def to_sql_values(self) -> str:
+        values = [format_value(getattr(self, field)) for field in self.model_fields]
+        return f"({', '.join(values)})"
 
 
 class StrikingPart(BaseModel): # ski.strikingparts() , public.get_strikingparts(), public.get_strikingparts_info(), public.qry_ts_strikingparts()
