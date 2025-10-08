@@ -263,3 +263,13 @@ export interface BunkaiSequence {
     resources?: Record<string, any>;
     resource_url?: string;
 }
+
+
+// =============================================================
+// API Response Models
+// =============================================================
+
+export interface TargetResponse {
+    message: string;
+    target: Target[];
+}

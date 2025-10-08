@@ -4,17 +4,17 @@ from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import APIKeyHeader
 import json
 
-from app.models import Target # ski.targets() , public.get_targets(), public.get_target_info(), public.qry_ts_targets()
-from app.models import StrikingPart # ski.strikingparts() , public.get_strikingparts(), public.get_strikingparts_info(), public.qry_ts_strikingparts()
-from app.models import Stand # ski.stands() , public.get_stands(), public.get_stand_info(), public.qry_ts_stands()
-from app.models import Grade # ski.grades() , public.get_grade()
-from app.models import KihonInventory # ski.kihon_inventory() , public.get_kihons()
-from app.models import KihonTx #get_kihon_tx()
-from app.models import KihonStep  #get_kihon_steps()
-from app.models import KihonFormatted  #kihon_frmlist()
-from app.models import KataInventory  # ski.kata_inventory() , public.show_katainventory(), public.get_katainfo()
-from app.models import KataSequenceStep  #get_katasequence()
-from app.models import BunkaiInventory  # ski.bunkai_inventory() , public.get_katabunkais()
+from .models import Target # ski.targets() , public.get_targets(), public.get_target_info(), public.qry_ts_targets()
+from .models import StrikingPart # ski.strikingparts() , public.get_strikingparts(), public.get_strikingparts_info(), public.qry_ts_strikingparts()
+from .models import Stand # ski.stands() , public.get_stands(), public.get_stand_info(), public.qry_ts_stands()
+from .models import Grade # ski.grades() , public.get_grade()
+from .models import KihonInventory # ski.kihon_inventory() , public.get_kihons()
+from .models import KihonTx #get_kihon_tx()
+from .models import KihonStep  #get_kihon_steps()
+from .models import KihonFormatted  #kihon_frmlist()
+from .models import KataInventory  # ski.kata_inventory() , public.show_katainventory(), public.get_katainfo()
+from .models import KataSequenceStep  #get_katasequence()
+from .models import BunkaiInventory  # ski.bunkai_inventory() , public.get_katabunkais()
 
 #####                       NOTE                        #####
 #    the connection is set using the env variable SKIURI    #
@@ -60,9 +60,15 @@ async def get_admin_api_key(api_key: str = Depends(api_admin_key_header)):
 
 
 import psycopg2
+import psycopg2.pool
+
 uri = os.environ['SKIURI']
 admin_uri = os.environ['SKIURI'] #cambiare la variabile per un utente diverso
-print(uri)
+
+pool = psycopg2.pool.SimpleConnectionPool(
+    1, 5, uri
+)
+
 
 @app.get("/")
 def read_root():
@@ -73,28 +79,28 @@ def read_root():
 def read_gradeid(gradetype:str ,grade: int):
     """Retrieves the ID for a given grade and grade type."""
     query = f"SELECT get_gradeid({grade},'{gradetype}');" 
-    conn = psycopg2.connect(uri)
-    cur = conn.cursor()
-    cur.execute(query)
-    result = cur.fetchone()
-    cur.close()
-    conn.close()
+    conn = pool.getconn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(query)
+            result = cur.fetchone()
+    finally:
+        pool.putconn(conn)
+
     grade_id = int(result[0])
     return {"grade": grade_id,}
 
 @app.get("/numberofkihon/{grade_id}")
 def read_kihonsequencedomain(grade_id: int ):
     """Retrieves the number of kihon sequences for a given grade ID."""
-    conn = psycopg2.connect(uri)
-    cur = conn.cursor()
-    cur.execute("SELECT public.get_nkihon(%s);", (grade_id,))
-
-    result = cur.fetchone()
-    cur.close()
-    conn.close()
-    print(result)
+    conn = pool.getconn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT public.get_nkihon(%s);", (grade_id,))
+            result = cur.fetchone()
+    finally:
+        pool.putconn(conn)
     max_seq = int(result[0])
-    print(max_seq)
     return {"grade": grade_id,"n_kihon":max_seq}
 
 @app.get("/kihon_list/{grade_id}/{sequenza}")
@@ -125,18 +131,19 @@ def kihon_dtls(grade_id: int , sequenza: int):
     FROM get_kihon_tx({grade_id}, {sequenza});
     """
     
-    conn = psycopg2.connect(uri)
-    cur = conn.cursor()
-    cur.execute(q_step)
-    result_steps = cur.fetchall()
-    cur.execute(q_tx)
-    result_tx = cur.fetchall()
-    cur.execute(f"SELECT get_kihonnotes({grade_id} ,{sequenza});") #da implementare nel json di ritorno
-    result_note = cur.fetchone()
-    cur.execute(f"SELECT grade,gtype FROM public.get_grade({grade_id});") 
-    grade_data = cur.fetchone()
-    cur.close()
-    conn.close()
+    conn = pool.getconn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(q_step)
+            result_steps = cur.fetchall()
+            cur.execute(q_tx)
+            result_tx = cur.fetchall()
+            cur.execute(f"SELECT get_kihonnotes({grade_id} ,{sequenza});") #da implementare nel json di ritorno
+            result_note = cur.fetchone()
+            cur.execute(f"SELECT grade,gtype FROM public.get_grade({grade_id});") 
+            grade_data = cur.fetchone()
+    finally:
+        pool.putconn(conn)
     s_results = {
         res[2] : {
             'id_sequence': res[0] ,
@@ -196,15 +203,15 @@ def kihon(grade_id: int):
            notes
     FROM kihon_frmlist({grade_id});
     """
-    conn = psycopg2.connect(uri)
-    cur = conn.cursor()
-    cur.execute(query)
-    result = cur.fetchall()
-    cur.execute("SELECT grade, gtype FROM public.get_grade(%s);", (grade_id,))
-
-    grade_data = cur.fetchone()
-    cur.close()
-    conn.close()
+    conn = pool.getconn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(query)
+            result = cur.fetchall()
+            cur.execute("SELECT grade, gtype FROM public.get_grade(%s);", (grade_id,))
+            grade_data = cur.fetchone()
+    finally:
+        pool.putconn(conn)
     print(result)
     res = dict()
     for row in result:
@@ -227,27 +234,27 @@ def kihon(grade_id: int):
 @app.get("/kata/{kata_id}")
 def kata(kata_id: int):
     """Retrieves the sequence steps and transitions for a given kata ID."""
-    conn = psycopg2.connect(uri)
-    cur = conn.cursor()
-    cur.execute(
-        f"SELECT id_sequence, kata_id, seq_num, stand_id, posizione, guardia, facing, Tecniche, embusen, kiai, notes, remarks, resources, resource_url FROM public.get_katasequence({kata_id});"
-    )
-    steps_result = cur.fetchall()
-    cur.execute(
-        f"SELECT id_tx, from_sequence, to_sequence, tempo, direction, notes, remarks, resources, resource_url FROM public.get_katatx({kata_id});",
-    )
-    tx_result = cur.fetchall()
-    cur.execute(f"SELECT kata, serie, starting_leg, notes, remarks, resources, resource_url FROM public.get_katainfo({kata_id});")
-    info = cur.fetchone()
+    conn = pool.getconn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                f"SELECT id_sequence, kata_id, seq_num, stand_id, posizione, guardia, facing, Tecniche, embusen, kiai, notes, remarks, resources, resource_url FROM public.get_katasequence({kata_id});"
+            )
+            steps_result = cur.fetchall()
+            cur.execute(
+                f"SELECT id_tx, from_sequence, to_sequence, tempo, direction, notes, remarks, resources, resource_url FROM public.get_katatx({kata_id});",
+            )
+            tx_result = cur.fetchall()
+            cur.execute(f"SELECT kata, serie, starting_leg, notes, remarks, resources, resource_url FROM public.get_katainfo({kata_id});")
+            info = cur.fetchone()
 
-    cur.execute(f"SELECT id_bunkai,version,name,description,notes,resources FROM public.get_katabunkais({kata_id});") #id_bunkai,version,name,description,notes,resources
-    bunkais_result = cur.fetchall()
-    bunkai_ids  = {
-        res[0]:{"version":res[1],"name":res[2],"description":res[3],"notes":res[4],"resources":res[5]} for res in bunkais_result
-    }
-    print(bunkai_ids)
-    cur.close()
-    conn.close()
+            cur.execute(f"SELECT id_bunkai,version,name,description,notes,resources FROM public.get_katabunkais({kata_id});") #id_bunkai,version,name,description,notes,resources
+            bunkais_result = cur.fetchall()
+            bunkai_ids  = {
+                res[0]:{"version":res[1],"name":res[2],"description":res[3],"notes":res[4],"resources":res[5]} for res in bunkais_result
+            }
+    finally:
+        pool.putconn(conn)
 
     res_steps = {
         step[2]: {
@@ -303,14 +310,15 @@ def kata(kata_id: int):
         "bunkai_ids": bunkai_ids
     }
 @app.get("/bunkai_inventory/{kata_id}")
-def bunkai_inventory(kata_id: int):
+def bunkai_inventory(kata_id: int): #err
     """Retrieves the inventory of all bunkais for a given kata ID."""
-    conn = psycopg2.connect(uri)
-    cur = conn.cursor()
-    cur.execute(f"SELECT id_bunkai, kata_id, version, name, description, notes,resources, resource_url FROM public.get_katabunkais({kata_id});")
-    bunkai_result = cur.fetchall()
-    cur.close()
-    conn.close()
+    conn = pool.getconn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(f"SELECT id_bunkai, kata_id, version, name, description, notes,resources, resource_url FROM public.get_katabunkais({kata_id});")
+            bunkai_result = cur.fetchall()
+    finally:
+        pool.putconn(conn)
     print(bunkai_result)
     bunkai_inventory = {res[0]:{
         'kata_id': res[1],
@@ -326,12 +334,13 @@ def bunkai_inventory(kata_id: int):
 @app.get("/bunkai_dtls/{bunkai_id}")
 def bunkaisteps(bunkai_id: int):
     """Retrieves the sequence steps for a given bunkai ID."""  
-    conn = psycopg2.connect(uri)
-    cur = conn.cursor()
-    cur.execute(f"SELECT id_bunkaisequence, bunkai_id, kata_sequence_id, description, notes, array_to_json(remarks) as remarks, resources, resource_url FROM public.get_bunkai({bunkai_id});")
-    steps_result = cur.fetchall()
-    cur.close()
-    conn.close()
+    conn = pool.getconn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(f"SELECT id_bunkaisequence, bunkai_id, kata_sequence_id, description, notes, array_to_json(remarks) as remarks, resources, resource_url FROM public.get_bunkai({bunkai_id});")
+            steps_result = cur.fetchall()
+    finally:
+        pool.putconn(conn)
     res_steps = {
         step[2]: {
             'id_bunkaisequence': step[0],
@@ -349,37 +358,39 @@ def bunkaisteps(bunkai_id: int):
 @app.get("/grade_inventory")
 def grade_inventory():
     """Retrieves the inventory of all available grades."""
-    conn = psycopg2.connect(uri)
-    cur = conn.cursor()
-    cur.execute("SELECT grade, gtype, id_grade FROM public.show_gradeinventory();")
-
-    results = cur.fetchall()
-    cur.close()
-    conn.close()
+    conn = pool.getconn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT grade, gtype, id_grade FROM public.show_gradeinventory();")
+            results = cur.fetchall()
+    finally:
+        pool.putconn(conn)
     gradi = {res[2]:f"{res[0]}° {res[1]}" for res in results}
     return {"gradi": str(gradi)}
 
 @app.get("/kata_inventory")
 def kata_inventory():
     """Retrieves the inventory of all available katas."""
-    conn = psycopg2.connect(uri)
-    cur = conn.cursor()
-    cur.execute("SELECT id_kata, kata, serie, starting_leg, notes, remarks, resources, resource_url FROM public.show_katainventory();")
-    results = cur.fetchall()
-    cur.close()
-    conn.close()
+    conn = pool.getconn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT id_kata, kata, serie, starting_leg, notes, remarks, resources, resource_url FROM public.show_katainventory();")
+            results = cur.fetchall()
+    finally:
+        pool.putconn(conn)
     kata = {res[1]:res[0] for res in results}
     return {"kata": kata}
 
 @app.get("/info_technic/{item_id}") 
 def get_info_technic(item_id: int):
     """Retrieves information about a specific technic by its ID."""
-    conn = psycopg2.connect(uri)
-    cur = conn.cursor()
-    cur.execute(f"SELECT id_technic, waza, name, description, notes, resource_url FROM public.get_technic_info({item_id});")
-    result = cur.fetchone()
-    cur.close()
-    conn.close()
+    conn = pool.getconn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(f"SELECT id_technic, waza, name, description, notes, resource_url FROM public.get_technic_info({item_id});")
+            result = cur.fetchone()
+    finally:
+        pool.putconn(conn)
     if result:
         row = {'id_technic':result[0], 'waza':result[1], 'name':result[2], 'description':result[3], 'notes':result[4], 'resource_url':result[5]}
     else:
@@ -387,14 +398,15 @@ def get_info_technic(item_id: int):
     return {"id":item_id,"info_technic":row}
 
 @app.get("/technics_decomposition/{item_id}")
-def get_technic_decomposition(item_id: int):
+def get_technic_decomposition(item_id: int): #err
     """Retrieves the decomposition of a specific technic by its ID."""
-    conn = psycopg2.connect(uri)
-    cur = conn.cursor()
-    cur.execute(f"SELECT step_num, stand_id, technic_id, gyaku, target_hgt, notes, resource_url FROM get_technic_decomposition({item_id});")
-    results = cur.fetchall()
-    cur.close()
-    conn.close()
+    conn = pool.getconn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(f"SELECT step_num, stand_id, technic_id, gyaku, target_hgt, notes, resource_url FROM get_technic_decomposition({item_id});")
+            results = cur.fetchall()
+    finally:
+        pool.putconn(conn)
     output = {
         result[0]:{
             'step_num':result[0], 
@@ -413,12 +425,13 @@ def get_technic_decomposition(item_id: int):
 @app.get("/info_stand/{item_id}")
 def get_info_stand(item_id: int):
     """Retrieves information about a specific stand (position) by its ID."""
-    conn = psycopg2.connect(uri)
-    cur = conn.cursor()
-    cur.execute(f"SELECT id_stand, name, description, illustration_url, notes FROM get_stand_info({item_id});")
-    result = cur.fetchone()
-    cur.close()
-    conn.close()
+    conn = pool.getconn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(f"SELECT id_stand, name, description, illustration_url, notes FROM get_stand_info({item_id});")
+            result = cur.fetchone()
+    finally:
+        pool.putconn(conn)
     if result:
         row =  {'id_stand':result[0], 'name':result[1], 'description':result[2], 'illustration_url':result[3], 'notes':result[4]}
     else:
@@ -429,12 +442,13 @@ def get_info_stand(item_id: int):
 @app.get("/info_strikingparts/{item_id}")
 def get_info_strikingparts(item_id: int):
     """Retrieves information about a specific striking part by its ID."""
-    conn = psycopg2.connect(uri)
-    cur = conn.cursor()
-    cur.execute(f"SELECT id_part, name, translation, description, notes, resource_url FROM get_strikingparts_info({item_id});")
-    result = cur.fetchone()
-    cur.close()
-    conn.close()
+    conn = pool.getconn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(f"SELECT id_part, name, translation, description, notes, resource_url FROM get_strikingparts_info({item_id});")
+            result = cur.fetchone()
+    finally:
+        pool.putconn(conn)
     print(result)
     if result:
         row =  {'id_part':result[0], 'name':result[1], 'translation':result[2], 'description':result[3], 'notes':result[4], 'resource_url':result[5]}
@@ -446,12 +460,13 @@ def get_info_strikingparts(item_id: int):
 @app.get("/info_target/{item_id}")
 def get_info_target(item_id: int):
     """Retrieves information about a specific target by its ID."""
-    conn = psycopg2.connect(uri)
-    cur = conn.cursor()
-    cur.execute(f"SELECT id_target, name, original_name, description, notes, resource_url FROM get_target_info({item_id});")
-    result = cur.fetchone()
-    cur.close()
-    conn.close()
+    conn = pool.getconn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(f"SELECT id_target, name, original_name, description, notes, resource_url FROM get_target_info({item_id});")
+            result = cur.fetchone()
+    finally:
+        pool.putconn(conn)
     if result:
         row =  {'id_target':result[0], 'name':result[1], 'original_name':result[2], 'description':result[3], 'notes':result[4], 'resource_url':result[5]}
     else:
@@ -462,24 +477,22 @@ def get_info_target(item_id: int):
 @app.get("/finder")
 def finder(search: str = ""):
     """Performs a full-text search across targets, technics, stands, and striking parts."""
-    conn = psycopg2.connect(uri)
-    cur = conn.cursor()
+    conn = pool.getconn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT pertinenza, pertinenza_relativa, id_target, name, original_name, description, notes, resource_url FROM public.qry_ts_targets(%s);", (search,))
+            results_targets = cur.fetchall()
 
-    # Use database functions instead of inline queries
-    cur.execute("SELECT pertinenza, pertinenza_relativa, id_target, name, original_name, description, notes, resource_url FROM public.qry_ts_targets(%s);", (search,))
-    results_targets = cur.fetchall()
+            cur.execute("SELECT pertinenza, pertinenza_relativa, id_technic, waza, name, description, notes, resource_url FROM public.qry_ts_technics(%s);", (search,))
+            results_technics = cur.fetchall()
 
-    cur.execute("SELECT pertinenza, pertinenza_relativa, id_technic, waza, name, description, notes, resource_url FROM public.qry_ts_technics(%s);", (search,))
-    results_technics = cur.fetchall()
+            cur.execute("SELECT pertinenza, pertinenza_relativa, id_stand, name, description, illustration_url, notes FROM public.qry_ts_stands(%s);", (search,))
+            results_stands = cur.fetchall()
 
-    cur.execute("SELECT pertinenza, pertinenza_relativa, id_stand, name, description, illustration_url, notes FROM public.qry_ts_stands(%s);", (search,))
-    results_stands = cur.fetchall()
-
-    cur.execute("SELECT pertinenza, pertinenza_relativa, id_part, name, translation, description, notes, resource_url FROM public.qry_ts_strikingparts(%s);", (search,))
-    results_strikingparts = cur.fetchall() 
-
-    cur.close()
-    conn.close()
+            cur.execute("SELECT pertinenza, pertinenza_relativa, id_part, name, translation, description, notes, resource_url FROM public.qry_ts_strikingparts(%s);", (search,))
+            results_strikingparts = cur.fetchall() 
+    finally:
+        pool.putconn(conn)
 
     # Build parsed dictionaries like /finder
     output_technics = {
@@ -555,12 +568,13 @@ def finder(search: str = ""):
 @app.get("/technic_inventory")
 def info_technic_inventory():
     """Retrieves the inventory of all technics."""
-    conn = psycopg2.connect(uri)
-    cur = conn.cursor()
-    cur.execute("SELECT id_technic, waza, name, description, notes, resource_url FROM public.get_technics();")
-    results = cur.fetchall()
-    cur.close()
-    conn.close()
+    conn = pool.getconn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT id_technic, waza, name, description, notes, resource_url FROM public.get_technics();")
+            results = cur.fetchall()
+    finally:
+        pool.putconn(conn)
     output = {
             result[0]:{
                 'id_technic':result[0], 
@@ -580,12 +594,13 @@ def info_technic_inventory():
 @app.get("/stand_inventory")
 def get_stand_inventory():
     """Retrieves the inventory of all stands."""
-    conn = psycopg2.connect(uri)
-    cur = conn.cursor()
-    cur.execute("SELECT id_stand, name, description, illustration_url, notes FROM public.get_stands();")
-    results = cur.fetchall()
-    cur.close()
-    conn.close()
+    conn = pool.getconn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT id_stand, name, description, illustration_url, notes FROM public.get_stands();")
+            results = cur.fetchall()
+    finally:
+        pool.putconn(conn)
     output = {
         result[0]:{
             'id_stand':result[0], 
@@ -603,12 +618,13 @@ def get_stand_inventory():
 @app.get("/strikingparts_inventory")
 def get_strikingparts_inventory():
     """Retrieves the inventory of all striking parts."""
-    conn = psycopg2.connect(uri)
-    cur = conn.cursor()
-    cur.execute("SELECT id_part, name, translation, description, notes, resource_url FROM public.get_strikingparts();")
-    results = cur.fetchall()
-    cur.close()
-    conn.close()
+    conn = pool.getconn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT id_part, name, translation, description, notes, resource_url FROM public.get_strikingparts();")
+            results = cur.fetchall()
+    finally:
+        pool.putconn(conn)
     output = {result[0]:{
             'id_part':result[0], 
             'name':result[1], 
@@ -626,12 +642,13 @@ def get_strikingparts_inventory():
 @app.get("/target_inventory")
 def get_target_inventory():
     """Retrieves the inventory of all targets."""
-    conn = psycopg2.connect(uri)
-    cur = conn.cursor()
-    cur.execute("SELECT id_target, name, original_name, description, notes, resource_url FROM public.get_targets();")
-    results = cur.fetchall()
-    cur.close()
-    conn.close()
+    conn = pool.getconn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT id_target, name, original_name, description, notes, resource_url FROM public.get_targets();")
+            results = cur.fetchall()
+    finally:
+        pool.putconn(conn)
     output = {result[0]:{
             'id_target':result[0], 
             'name':result[1], 
@@ -649,12 +666,13 @@ def get_target_inventory():
 @app.get("/utils/present_kata/{kata_id}")  
 def present_kata(kata_id: int):
     """Checks if a kata with the given ID exists in the database."""
-    conn = psycopg2.connect(uri)
-    cur = conn.cursor()
-    cur.execute(f"SELECT * FROM public.info_kata({kata_id});")
-    result = cur.fetchall()
-    cur.close()
-    conn.close()
+    conn = pool.getconn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(f"SELECT * FROM public.info_kata({kata_id});")
+            result = cur.fetchall()
+    finally:
+        pool.putconn(conn)
 
     present = {res[0]:{
         "id_sequence" :  res[0],
@@ -685,23 +703,46 @@ def get_secure_data():
 
 
 # --- POST: Insert Target ---
-@app.post("/targets", status_code=201)
-def create_target(target: Target, api_key: str = Depends(get_admin_api_key)): #record sngolo
+
+@app.put("/admin/insert/targets/bulk", status_code=201)
+def create_targets_bulk(targets: List[Target], api_key: str = Depends(get_admin_api_key)): #blocco di record
     """
-    Inserts a new row into the Target table.
+    Inserts multiple Target rows in a single transaction.
     """
     conn = psycopg2.connect(admin_uri)
     cur = conn.cursor()
-
+    print(targets)
+    values = ",".join([t.to_sql_values() for t in targets])
+    col_list=[f for f in Target.model_fields]
+    columns = ", ".join(col_list)
+    upsertspecification = ", ".join([f"{col}=EXCLUDED.{col}" for col in col_list])
+    print(values)
+    print(columns)
+    upsertquery = f"""INSERT INTO ski.targets({columns})
+    VALUES {values}
+        ON CONFLICT (id_target)
+        DO UPDATE SET {upsertspecification}
+      RETURNING {columns};
+    """
+    print(upsertquery)
     try:
-        cur.execute(f"""INSERT INTO ski.targets (id_target, name, original_name, description, notes, resource_url)
-            VALUES ({target.id_target},'{target.name}','{target.original_name}',$${target.description}$$,$${target.notes}$$,$${target.resource_url}$$)
-            RETURNING id_target;"""
-        )
-        new_id = cur.fetchone()[0]
+        cur.execute(upsertquery)
         conn.commit()
-
-        return {"message": "Target created successfully", "id_target": new_id}
+        res_targets = cur.fetchall()
+        targets = [
+            Target(
+                id_target=row[0],
+                name=row[1],
+                original_name=row[2],
+                description=row[3],
+                notes=row[4],
+                resource_url=row[5],
+            )
+            for row in res_targets
+        ]
+        return {"message": "Inserted", 
+                "target": targets
+        }
 
     except psycopg2.Error as e:
         conn.rollback()
@@ -709,44 +750,52 @@ def create_target(target: Target, api_key: str = Depends(get_admin_api_key)): #r
     finally:
         cur.close()
         conn.close()
+@app.put("/admin/delete/targets/bulk", status_code=201)
 
-#from typing import List
-
-@app.post("/admin/insert/targets/bulk", status_code=201)
-def create_targets_bulk(targets: List[Target], api_key: str = Depends(get_admin_api_key)): #blocco di record
-    """
-    Inserts multiple Target rows in a single transaction.
-    """
+def delete_targets_bulk(ids: List[int], api_key: str = Depends(get_admin_api_key)):
     conn = psycopg2.connect(admin_uri)
-    cursor = conn.cursor()
-    values = ",".join([f"({t.id_target},{t.name},{t.original_name},{t.description},{t.notes},{t.resource_url})" for t in targets])
+    cur = conn.cursor()
+    print(ids)
+    values = ",".join([f"( {i} )" for i in ids])
+    col_list=[f for f in Target.model_fields]
+    columns = ", ".join(col_list)
+    # upsertspecification = ", ".join([f"{col}=EXCLUDED.{col}" for col in col_list])
+    print(values)
+    # print(columns)
+    deletequery = f"""
+    WITH to_delete AS (
+        SELECT unnest(ARRAY[{','.join(map(str, ids))}]) AS ids
+    )
+    DELETE FROM ski.targets
+    WHERE id_target IN (SELECT ids FROM to_delete)
+    RETURNING {columns};
+    """
+    print(deletequery)
     try:
-        insert_query = """
-            INSERT INTO ski.targets (id_target, name, original_name, description, notes, resource_url)
-            VALUES (%s, %s, %s, %s, %s, %s)
-        """
-        data = [
-            (
-                t.id_target,
-                t.name,
-                t.original_name,
-                t.description,
-                t.notes,
-                t.resource_url
-            )
-            for t in targets
-        ]
-
-        cursor.executemany(insert_query, data)
+        cur.execute(deletequery)
         conn.commit()
-
-        return {"message": f"{len(targets)} targets inserted successfully"}
+        res_targets = cur.fetchall()
+        print(res_targets)
+        targets = [
+            Target(
+                id_target=row[0],
+                name=row[1],
+                original_name=row[2],
+                description=row[3],
+                notes=row[4],
+                resource_url=row[5],
+            )
+            for row in res_targets
+        ]
+        return {"message": "Deleted", 
+                "target": targets
+        }
 
     except psycopg2.Error as e:
         conn.rollback()
         raise HTTPException(status_code=400, detail=f"Database error: {e.pgerror}")
     finally:
-        cursor.close()
+        cur.close()
         conn.close()
 
 @app.get("/admin/select/targets/all", dependencies=[Depends(get_admin_api_key)])
@@ -756,7 +805,7 @@ def select_targets():
     conn = psycopg2.connect(admin_uri)
     cur = conn.cursor()
     cur.execute("SELECT id_target,name,original_name,description,notes,resource_url FROM ski.targets;")
-    results = cur.fetchall()
+    res_targets = cur.fetchall()
     cur.close()
     conn.close()
     targets = [
@@ -768,17 +817,10 @@ def select_targets():
             notes=row[4],
             resource_url=row[5],
         )
-        for row in rows
+        for row in res_targets
     ]
     return {"message": "Target content", 
             "target": targets
     }
 
-# valutare se usare
-def get_db_connection():
-    """Establishes and returns a PostgreSQL connection."""
-    try:
-        conn = psycopg2.connect(uri)
-        return conn
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database connection error: {e}")
+#StrikingPart Technic Stand Grade

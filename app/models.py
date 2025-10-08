@@ -116,8 +116,17 @@ class Target(BaseModel): # ski.targets() , public.get_targets(), public.get_targ
     resource_url: Optional[str] = None
     
     def to_sql_values(self) -> str:
-        values = [format_value(getattr(self, field)) for field in self.model_fields]
+        values = [format_value(getattr(self, field)) for field in Target.model_fields]
         return f"({', '.join(values)})"
+    def from_sql_row(row: tuple) -> 'Target':
+        return Target(
+            id_target=row[0],
+            name=row[1],
+            original_name=row[2],
+            description=row[3],
+            notes=row[4],
+            resource_url=row[5]
+        )
 
 
 class StrikingPart(BaseModel): # ski.strikingparts() , public.get_strikingparts(), public.get_strikingparts_info(), public.qry_ts_strikingparts()
@@ -127,6 +136,10 @@ class StrikingPart(BaseModel): # ski.strikingparts() , public.get_strikingparts(
     description: Optional[str] = None
     notes: Optional[str] = None
     resource_url: Optional[str] = None
+        
+    def to_sql_values(self) -> str:
+        values = [format_value(getattr(self, field)) for field in StrikingPart.model_fields]
+        return f"({', '.join(values)})"
 
 
 class Technic(BaseModel): # ski.technics() , public.get_technics(), public.get_technic_info(), public.qry_ts_technics()
@@ -136,6 +149,10 @@ class Technic(BaseModel): # ski.technics() , public.get_technics(), public.get_t
     description: Optional[str] = None
     notes: Optional[str] = None
     resource_url: Optional[str] = None
+        
+    def to_sql_values(self) -> str:
+        values = [format_value(getattr(self, field)) for field in Technic.model_fields]
+        return f"({', '.join(values)})"
 
 class TechnicDecomposition(BaseModel):
     id_decomposition: int
@@ -145,6 +162,10 @@ class TechnicDecomposition(BaseModel):
     explatations: Optional[str] = None
     notes: Optional[str] = None
     resource_url: Optional[str] = None
+        
+    def to_sql_values(self) -> str:
+        values = [format_value(getattr(self, field)) for field in TechnicDecomposition.model_fields]
+        return f"({', '.join(values)})"
 
 
 class Stand(BaseModel):# ski.stands() , public.get_stands(), public.get_stand_info(), public.qry_ts_stands()
@@ -153,13 +174,20 @@ class Stand(BaseModel):# ski.stands() , public.get_stands(), public.get_stand_in
     description: Optional[str] = None
     illustration_url: Optional[str] = None
     notes: Optional[str] = None
-
+        
+    def to_sql_values(self) -> str:
+        values = [format_value(getattr(self, field)) for field in Stand.model_fields]
+        return f"({', '.join(values)})"
 
 class Grade(BaseModel): # ski.grades() , public.get_grade()
     id_grade: int
     gtype: GradeType
     grade: int = Field(..., ge=1, le=10)
     color: Optional[BeltColor] = None
+        
+    def to_sql_values(self) -> str:
+        values = [format_value(getattr(self, field)) for field in Grade.model_fields]
+        return f"({', '.join(values)})"
 
 
 class KihonInventory(BaseModel): # ski.kihon_inventory() , public.get_kihons()
@@ -168,6 +196,10 @@ class KihonInventory(BaseModel): # ski.kihon_inventory() , public.get_kihons()
     number: int
     resources: Optional[Dict[str, Any]] = None
     notes: Optional[str] = None
+        
+    def to_sql_values(self) -> str:
+        values = [format_value(getattr(self, field)) for field in KihonInventory.model_fields]
+        return f"({', '.join(values)})"
 
 class KihonSequence(BaseModel):
     id_sequence: int
@@ -181,6 +213,10 @@ class KihonSequence(BaseModel):
     resources: Optional[Dict[str, Any]] = None
     notes: Optional[str] = None
     resource_url: Optional[str] = None
+        
+    def to_sql_values(self) -> str:
+        values = [format_value(getattr(self, field)) for field in KihonSequence.model_fields]
+        return f"({', '.join(values)})"
 
 class KihonTx(BaseModel):#get_kihon_tx()
     id_tx: int
@@ -191,6 +227,10 @@ class KihonTx(BaseModel):#get_kihon_tx()
     notes: Optional[str] = None
     tempo: Optional[Tempo] = None
     resource_url: Optional[str] = None
+        
+    def to_sql_values(self) -> str:
+        values = [format_value(getattr(self, field)) for field in KihonTx.model_fields]
+        return f"({', '.join(values)})"
 
 class KihonStep(BaseModel): #get_kihon_steps()
     id_sequence: int
@@ -204,6 +244,10 @@ class KihonStep(BaseModel): #get_kihon_steps()
     resource_url: str | None
     stand_name: str | None
     technic_name: str | None
+        
+    def to_sql_values(self) -> str:
+        values = [format_value(getattr(self, field)) for field in KihonStep.model_fields]
+        return f"({', '.join(values)})"
 
 class KihonFormatted(BaseModel): #kihon_frmlist()
     number: int
@@ -216,6 +260,10 @@ class KihonFormatted(BaseModel): #kihon_frmlist()
     posizione: str | None
     target_hgt: TargetHgt | None
     notes: str | None
+        
+    def to_sql_values(self) -> str:
+        values = [format_value(getattr(self, field)) for field in KihonFormatted.model_fields]
+        return f"({', '.join(values)})"
 
 
 class KataInventory(BaseModel): # ski.kata_inventory() , public.show_katainventory(), public.get_katainfo()
@@ -226,6 +274,10 @@ class KataInventory(BaseModel): # ski.kata_inventory() , public.show_katainvento
     notes: Optional[str] = None
     resources: Optional[Dict[str, Any]] = None
     resource_url: Optional[str] = None
+        
+    def to_sql_values(self) -> str:
+        values = [format_value(getattr(self, field)) for field in KataInventory.model_fields]
+        return f"({', '.join(values)})"
 
 class KataSequence(BaseModel):
     id_sequence: int
@@ -242,6 +294,10 @@ class KataSequence(BaseModel):
     remarks: Optional[List[DetailedNotes]] = None
     resources: Optional[Dict[str, Any]] = None
     resource_url: Optional[str] = None
+        
+    def to_sql_values(self) -> str:
+        values = [format_value(getattr(self, field)) for field in KataSequence.model_fields]
+        return f"({', '.join(values)})"
 
 class KataSequenceWaza(BaseModel):
     id_kswaza: int
@@ -252,6 +308,10 @@ class KataSequenceWaza(BaseModel):
     technic_target_id: Optional[int] = None
     notes: Optional[str] = None
     resources: Optional[Dict[str, Any]] = None
+        
+    def to_sql_values(self) -> str:
+        values = [format_value(getattr(self, field)) for field in KataSequenceWaza.model_fields]
+        return f"({', '.join(values)})"
 
 class KataTx(BaseModel):
     id_tx: int
@@ -264,6 +324,10 @@ class KataTx(BaseModel):
     remarks: Optional[List[DetailedNotes]] = None
     resources: Optional[Dict[str, Any]] = None
     resource_url: Optional[str] = None
+        
+    def to_sql_values(self) -> str:
+        values = [format_value(getattr(self, field)) for field in KataTx.model_fields]
+        return f"({', '.join(values)})"
 
 class KataTechnique(BaseModel): #json in tecniche di KataSequenceStep
     sequence_id: int
@@ -274,6 +338,10 @@ class KataTechnique(BaseModel): #json in tecniche di KataSequenceStep
     Obiettivo: str | None = Field(alias="obiettivo")
     waza_note: str | None
     waza_resources: dict | None
+        
+    def to_sql_values(self) -> str:
+        values = [format_value(getattr(self, field)) for field in KataTechnique.model_fields]
+        return f"({', '.join(values)})"
 
 class KataSequenceStep(BaseModel): #get_katasequence()
     id_sequence: int
@@ -290,6 +358,10 @@ class KataSequenceStep(BaseModel): #get_katasequence()
     remarks: List[DetailedNotes] | None
     resources: dict | None
     resource_url: str | None
+        
+    def to_sql_values(self) -> str:
+        values = [format_value(getattr(self, field)) for field in KataSequenceStep.model_fields]
+        return f"({', '.join(values)})"
 
 
 class BunkaiInventory(BaseModel): # ski.bunkai_inventory() , public.get_katabunkais()
@@ -301,6 +373,10 @@ class BunkaiInventory(BaseModel): # ski.bunkai_inventory() , public.get_katabunk
     notes: Optional[str] = None
     resources: Optional[Dict[str, Any]] = None
     resource_url: Optional[str] = None
+        
+    def to_sql_values(self) -> str:
+        values = [format_value(getattr(self, field)) for field in BunkaiInventory.model_fields]
+        return f"({', '.join(values)})"
 
 class BunkaiSequence(BaseModel):
     id_bunkaisequence: int
@@ -311,3 +387,7 @@ class BunkaiSequence(BaseModel):
     remarks: Optional[List[DetailedNotes]] = None
     resources: Optional[Dict[str, Any]] = None
     resource_url: Optional[str] = None
+        
+    def to_sql_values(self) -> str:
+        values = [format_value(getattr(self, field)) for field in BunkaiSequence.model_fields]
+        return f"({', '.join(values)})"

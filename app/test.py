@@ -2,6 +2,20 @@ from typing import Union
 import os
 import json
 import psycopg2
+
+
+from .models import Target # ski.targets() , public.get_targets(), public.get_target_info(), public.qry_ts_targets()
+from .models import StrikingPart # ski.strikingparts() , public.get_strikingparts(), public.get_strikingparts_info(), public.qry_ts_strikingparts()
+from .models import Stand # ski.stands() , public.get_stands(), public.get_stand_info(), public.qry_ts_stands()
+from .models import Grade # ski.grades() , public.get_grade()
+from .models import KihonInventory # ski.kihon_inventory() , public.get_kihons()
+from .models import KihonTx #get_kihon_tx()
+from .models import KihonStep  #get_kihon_steps()
+from .models import KihonFormatted  #kihon_frmlist()
+from .models import KataInventory  # ski.kata_inventory() , public.show_katainventory(), public.get_katainfo()
+from .models import KataSequenceStep  #get_katasequence()
+from .models import BunkaiInventory  # ski.bunkai_inventory() , public.get_katabunkais()
+
 uri = os.environ['SKIURI']
 
 
@@ -34,11 +48,12 @@ import psycopg2.pool
 # Create a connection pool with a minimum of 2 connections and
 #a maximum of 3 connections
 pool = psycopg2.pool.SimpleConnectionPool(
-    2, 3, uri
+    1, 5, uri
 )
 
 # Get a connection from the pool
-connection1 = pool.getconn()
+with my_pool.connection() as conn:
+    conn.execute(...)
 
 # Use the connection to execute a query
 cursor = connection1.cursor()
