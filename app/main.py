@@ -4,7 +4,7 @@ from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import APIKeyHeader
 import json
 
-from .models import Target # ski.targets() , public.get_targets(), public.get_target_info(), public.qry_ts_targets()
+from .models import Target # ski.targets , public.get_targets(), public.get_target_info(), public.qry_ts_targets()
 from .models import StrikingPart # ski.strikingparts() , public.get_strikingparts(), public.get_strikingparts_info(), public.qry_ts_strikingparts()
 from .models import Stand # ski.stands() , public.get_stands(), public.get_stand_info(), public.qry_ts_stands()
 from .models import Grade # ski.grades() , public.get_grade()

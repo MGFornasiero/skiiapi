@@ -36,7 +36,12 @@ cur = conn.cursor()
 cur.execute("SELECT id_target, name, original_name, description, notes, resource_url FROM public.get_targets();")
 result = cur.fetchall()
 tgts = [Target.from_sql_row(row) for row in result]
+rtn = {
+    "targets": [tgt.model_dump() for tgt in tgts]
+}
 print(tgts)
+print("\n")
+print(rtn)
 
 print("\n")
 

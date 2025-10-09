@@ -129,6 +129,7 @@ class Target(BaseModel): # ski.targets , public.get_targets(), public.get_target
         )
 
 
+
 class StrikingPart(BaseModel): # ski.strikingparts() , public.get_strikingparts(), public.get_strikingparts_info(), public.qry_ts_strikingparts()
     id_part: int
     name: str
