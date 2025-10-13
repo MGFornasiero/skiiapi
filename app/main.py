@@ -7,6 +7,7 @@ import json
 from .models import Target # ski.targets , public.get_targets(), public.get_target_info(), public.qry_ts_targets()
 from .models import StrikingPart # ski.strikingparts() , public.get_strikingparts(), public.get_strikingparts_info(), public.qry_ts_strikingparts()
 from .models import Stand # ski.stands() , public.get_stands(), public.get_stand_info(), public.qry_ts_stands()
+from .models import Technic # ski.technics() , public.get_technics(), public.get_technic_info(), public.qry_ts_technics(), public.get_technic_decomposition()
 from .models import Grade # ski.grades() , public.get_grade()
 from .models import KihonInventory # ski.kihon_inventory() , public.get_kihons()
 from .models import KihonTx #get_kihon_tx()
@@ -14,6 +15,7 @@ from .models import KihonStep  #get_kihon_steps()
 from .models import KihonFormatted  #kihon_frmlist()
 from .models import KataInventory  # ski.kata_inventory() , public.show_katainventory(), public.get_katainfo()
 from .models import KataSequenceStep  #get_katasequence()
+from .models import KataTx
 from .models import BunkaiInventory  # ski.bunkai_inventory() , public.get_katabunkais()
 
 #####                       NOTE                        #####
@@ -61,6 +63,7 @@ async def get_admin_api_key(api_key: str = Depends(api_admin_key_header)):
 
 import psycopg2
 import psycopg2.pool
+import psycopg2.extras
 
 uri = os.environ['SKIURI']
 admin_uri = os.environ['SKIURI'] #cambiare la variabile per un utente diverso
@@ -69,6 +72,11 @@ pool = psycopg2.pool.SimpleConnectionPool(
     1, 5, uri
 )
 
+conn = pool.getconn()
+psycopg2.extras.register_composite('embusen_points', conn, globally=True)
+psycopg2.extras.register_composite('bodypart', conn, globally=True)
+psycopg2.extras.register_composite('detailednotes', conn, globally=True)
+pool.putconn(conn)
 
 @app.get("/")
 def read_root():
@@ -125,8 +133,9 @@ def kihon_dtls(grade_id: int , sequenza: int):
            from_sequence,
            to_sequence,
            movement,
-           tempo,
+           resources,
            notes,
+           tempo,
            resource_url
     FROM get_kihon_tx({grade_id}, {sequenza});
     """
@@ -136,45 +145,47 @@ def kihon_dtls(grade_id: int , sequenza: int):
         with conn.cursor() as cur:
             cur.execute(q_step)
             result_steps = cur.fetchall()
+
+            objs_steps = [KihonStep.from_sql_row(row) for row in result_steps]
+            
             cur.execute(q_tx)
             result_tx = cur.fetchall()
+            objs_tx = [KihonTx.from_sql_row(row) for row in result_tx]
+            
             cur.execute(f"SELECT get_kihonnotes({grade_id} ,{sequenza});") #da implementare nel json di ritorno
             result_note = cur.fetchone()
             cur.execute(f"SELECT grade,gtype FROM public.get_grade({grade_id});") 
             grade_data = cur.fetchone()
     finally:
         pool.putconn(conn)
-    s_results = {
-        res[2] : {
-            'id_sequence': res[0] ,
-            'inventory_id': res[1] ,
-            'seq_num': res[2] ,
-            'stand': res[3] ,
-            'techinc': res[4] ,
-            'gyaku': res[5] ,
-            'target_hgt': res[6] ,
-            'notes': res[7] ,
-            'resource_url': res[8] ,
-            'stand_name': res[9] ,
-            'technic_name': res[10]
-        } for res in result_steps
-    }
-    tx_results = {
-        res[0] : {
-            'movement': res[3] ,
-            'tempo': res[4] ,
-            'notes': res[5] ,
-            'resource_url': res[6]
-        } for res in result_tx
-    }
+    # s_results = {
+    #     res[2] : {
+    #         'id_sequence': res[0] ,
+    #         'inventory_id': res[1] ,
+    #         'seq_num': res[2] ,
+    #         'stand': res[3] ,
+    #         'techinc': res[4] ,
+    #         'gyaku': res[5] ,
+    #         'target_hgt': res[6] ,
+    #         'notes': res[7] ,
+    #         'resource_url': res[8] ,
+    #         'stand_name': res[9] ,
+    #         'technic_name': res[10]
+    #     } for res in result_steps
+    # }
+    s_results = {obj.get_id():obj.model_dump() for obj in objs_steps}
+    # tx_results = {
+    #     res[0] : {
+    #         'movement': res[3] ,
+    #         'tempo': res[4] ,
+    #         'notes': res[5] ,
+    #         'resource_url': res[6]
+    #     } for res in result_tx
+    # }
+    tx_results = {obj.get_id():obj.model_dump() for obj in objs_tx} #quello implmentato sarebbe un subset di colonne
+    tx_mapping_to = {obj_tx.get_to():obj_tx.get_id() for obj_tx in objs_tx} #{res[2]:res[0] for res in result_tx}
     
-    tx_mapping_to = {
-        res[2]:res[0] for res in result_tx
-    }
-    
-    tx_mapping_from = {
-        res[1]:res[0] for res in result_tx
-    }
+    tx_mapping_from ={obj_tx.get_from():obj_tx.get_id() for obj_tx in objs_tx} #{res[1]:res[0] for res in result_tx}
     
     grade = f"{grade_data[0]}° {grade_data[1]}"
     return {"grade": grade, 
@@ -207,26 +218,32 @@ def kihon(grade_id: int):
     try:
         with conn.cursor() as cur:
             cur.execute(query)
-            result = cur.fetchall()
+            objs = [KihonFormatted.from_sql_row(result) for result in cur.fetchall()]
             cur.execute("SELECT grade, gtype FROM public.get_grade(%s);", (grade_id,))
             grade_data = cur.fetchone()
     finally:
         pool.putconn(conn)
-    print(result)
     res = dict()
-    for row in result:
-        if row[0] not in res.keys(): 
-            res[row[0]] = dict()
-        res[row[0]][row[1]] = {
-            "movement": row[2],
-            "technic_id": row[3],
-            "gyaku": row[4],
-            "tecnica": row[5], 
-            "stand_id": row[6],
-            "Stand": row[7] ,
-            "Target":row[8],
-            "Note":row[9]
-        }
+    for obj in objs:
+        num, seq, details = obj.presentation()
+        if num not in res.keys(): 
+            res[num] = dict()
+        res[num][seq] = details
+
+    # for row in result:
+    #     if row[0] not in res.keys(): 
+    #         res[row[0]] = dict()
+    #     res[row[0]][row[1]] = {
+    #         "movement": row[2],
+    #         "technic_id": row[3],
+    #         "gyaku": row[4],
+    #         "tecnica": row[5], 
+    #         "stand_id": row[6],
+    #         "Stand": row[7] ,
+    #         "Target":row[8],
+    #         "Note":row[9]
+    #     }
+
     
     grade = f"{grade_data[0]}° {grade_data[1]}"
     return {"grade": grade, "grade_id": grade_id, "kihons":res}
@@ -241,59 +258,61 @@ def kata(kata_id: int):
                 f"SELECT id_sequence, kata_id, seq_num, stand_id, posizione, guardia, facing, Tecniche, embusen, kiai, notes, remarks, resources, resource_url FROM public.get_katasequence({kata_id});"
             )
             steps_result = cur.fetchall()
+            print(steps_result)
+            objs_steps = [KataSequenceStep.from_sql_row(row) for row in steps_result]
             cur.execute(
                 f"SELECT id_tx, from_sequence, to_sequence, tempo, direction, notes, remarks, resources, resource_url FROM public.get_katatx({kata_id});",
             )
             tx_result = cur.fetchall()
+            objects_tx = [KataTx.from_sql_row(row) for row in tx_result]
             cur.execute(f"SELECT kata, serie, starting_leg, notes, remarks, resources, resource_url FROM public.get_katainfo({kata_id});")
             info = cur.fetchone()
-
-            cur.execute(f"SELECT id_bunkai,version,name,description,notes,resources FROM public.get_katabunkais({kata_id});") #id_bunkai,version,name,description,notes,resources
+            objects_info = KataInventory.from_sql_row(info[0])
+            cur.execute(f"SELECT id_bunkai,kata_id,version,name,description,notes,resources FROM public.get_katabunkais({kata_id});") #id_bunkai,version,name,description,notes,resources
             bunkais_result = cur.fetchall()
-            bunkai_ids  = {
-                res[0]:{"version":res[1],"name":res[2],"description":res[3],"notes":res[4],"resources":res[5]} for res in bunkais_result
-            }
+            objects_bunkai = [BunkaiInventory.from_sql_row(row) for row in bunkais_result]
+
     finally:
         pool.putconn(conn)
 
-    res_steps = {
-        step[2]: {
-            'id_sequence': step[0],
-            'kata_id': step[1],
-            'seq_num': step[2],
-            'stand_id': step[3],
-            'posizione': step[4],
-            'guardia': step[5],
-            'facing': step[6],
-            'tecniche': step[7],
-            'embusen': step[8],
-            'kiai': step[9],
-            'notes': step[10],
-            'remarks': step[11],
-            'resources': step[12],
-            'resource_url': step[13]
-        } for step in steps_result
-    }
+    # res_steps = {
+    #     step[2]: {
+    #         'id_sequence': step[0],
+    #         'kata_id': step[1],
+    #         'seq_num': step[2],
+    #         'stand_id': step[3],
+    #         'posizione': step[4],
+    #         'guardia': step[5],
+    #         'facing': step[6],
+    #         'tecniche': step[7],
+    #         'embusen': step[8],
+    #         'kiai': step[9],
+    #         'notes': step[10],
+    #         'remarks': step[11],
+    #         'resources': step[12],
+    #         'resource_url': step[13]
+    #     } for step in steps_result
+    # }
+    res_steps = {obj.get_id():obj.model_dump() for obj in objs_steps}  
 
-    transaction = {
-        res[0]: {
-            "tempo": res[3],
-            "direction": res[4],
-            "note": res[5],
-            "remarks": res[6],
-            "resources": res[7],
-            "resource_url": res[8]
-        } for res in tx_result
-    }
+    # transaction = {
+    #     res[0]: {
+    #         "tempo": res[3],
+    #         "direction": res[4],
+    #         "note": res[5],
+    #         "remarks": res[6],
+    #         "resources": res[7],
+    #         "resource_url": res[8]
+    #     } for res in tx_result
+    # }
+    transaction = {obj.get_id():obj.model_dump() for obj in objects_tx}
 
-    tx_mapping_to = {
-        res[2]: res[0] for res in tx_result
-    }
+    tx_mapping_to = {obj.get_to():obj.get_id() for obj in objects_tx} #{res[2]: res[0] for res in tx_result}
 
-    tx_mapping_from = {
-        res[1]: res[0] for res in tx_result
-    }
+    tx_mapping_from = {obj.get_from():obj.get_id() for obj in objects_tx} #{res[1]: res[0] for res in tx_result}
 
+    bunkai_ids  = {obj.get_id():obj.model_dump() for obj in objects_bunkai} #{res[0]:{"version":res[1],"name":res[2],"description":res[3],"notes":res[4],"resources":res[5]} for res in bunkais_result}
+    print(objects_info)
     return {
         "kata_id": kata_id,
         "kata_name": info[0],
@@ -365,7 +384,7 @@ def grade_inventory():
             results = cur.fetchall()
     finally:
         pool.putconn(conn)
-    gradi = {res[2]:f"{res[0]}° {res[1]}" for res in results}
+    gradi = {res[2]:f"{res[0]}° {res[1]}" for res in results} # creare funzione in models
     return {"gradi": str(gradi)}
 
 @app.get("/kata_inventory")
@@ -392,7 +411,8 @@ def get_info_technic(item_id: int):
     finally:
         pool.putconn(conn)
     if result:
-        row = {'id_technic':result[0], 'waza':result[1], 'name':result[2], 'description':result[3], 'notes':result[4], 'resource_url':result[5]}
+        row = Technic.from_sql_row(result).model_dump()
+        #{'id_technic':result[0], 'waza':result[1], 'name':result[2], 'description':result[3], 'notes':result[4], 'resource_url':result[5]}
     else:
         row = {'id_technic':None, 'waza':None, 'name':None, 'description':None, 'notes':None, 'resource_url':None}
     return {"id":item_id,"info_technic":row}
@@ -433,7 +453,8 @@ def get_info_stand(item_id: int):
     finally:
         pool.putconn(conn)
     if result:
-        row =  {'id_stand':result[0], 'name':result[1], 'description':result[2], 'illustration_url':result[3], 'notes':result[4]}
+        row = Stand.from_sql_row(result).model_dump()
+        #{'id_stand':result[0], 'name':result[1], 'description':result[2], 'illustration_url':result[3], 'notes':result[4]}
     else:
         row =  {'id_stand':None, 'name':None, 'description':None, 'illustration_url':None, 'notes':None}
     return {"id":item_id,"info_stand":row}
@@ -451,7 +472,8 @@ def get_info_strikingparts(item_id: int):
         pool.putconn(conn)
     print(result)
     if result:
-        row =  {'id_part':result[0], 'name':result[1], 'translation':result[2], 'description':result[3], 'notes':result[4], 'resource_url':result[5]}
+        row =  StrikingPart.from_sql_row(result).model_dump()
+        #{'id_part':result[0], 'name':result[1], 'translation':result[2], 'description':result[3], 'notes':result[4], 'resource_url':result[5]}
     else:
         row =  {'id_part':None, 'name':None, 'translation':None, 'description':None, 'notes':None, 'resource_url':None}
     return {"id":item_id,"info_strikingparts":row}
@@ -467,8 +489,10 @@ def get_info_target(item_id: int):
             result = cur.fetchone()
     finally:
         pool.putconn(conn)
+    
     if result:
-        row =  {'id_target':result[0], 'name':result[1], 'original_name':result[2], 'description':result[3], 'notes':result[4], 'resource_url':result[5]}
+        row =  Target.from_sql_row(result).model_dump()
+        #{'id_target':result[0], 'name':result[1], 'original_name':result[2], 'description':result[3], 'notes':result[4], 'resource_url':result[5]}
     else:
         row =  {'id_target':None, 'name':None, 'original_name':None, 'description':None, 'notes':None, 'resource_url':None}
     return {"id":item_id,"info_target":row}
@@ -495,48 +519,57 @@ def finder(search: str = ""):
         pool.putconn(conn)
 
     # Build parsed dictionaries like /finder
-    output_technics = {
-        r[2]: {
-            'id_technic': r[2],
-            'waza': r[3],
-            'name': r[4],
-            'description': r[5],
-            'notes': r[6],
-            'resource_url': r[7]
-        } for r in results_technics
-    }
+    # output_technics = {
+    #     r[2]: {
+    #         'id_technic': r[2],
+    #         'waza': r[3],
+    #         'name': r[4],
+    #         'description': r[5],
+    #         'notes': r[6],
+    #         'resource_url': r[7]
+    #     } for r in results_technics
+    # }
+    objs_technics = [Technic.from_sql_row(row[2:8]) for row in results_technics]
+    output_technics = {obj.get_id():obj.model_dump() for obj in objs_technics}
+    
 
-    output_stands = {
-        r[2]: {
-            'id_stand': r[2],
-            'name': r[3],
-            'description': r[4],
-            'illustration_url': r[5],
-            'notes': r[6]
-        } for r in results_stands
-    }
+    # output_stands = {
+    #     r[2]: {
+    #         'id_stand': r[2],
+    #         'name': r[3],
+    #         'description': r[4],
+    #         'illustration_url': r[5],
+    #         'notes': r[6]
+    #     } for r in results_stands
+    # }
+    objs_stands = [Stand.from_sql_row(row[2:7]) for row in results_stands]
+    output_stands = {obj.get_id():obj.model_dump() for obj in objs_stands}
 
-    output_strikingparts = {
-        r[2]: {
-            'id_part': r[2],
-            'name': r[3],
-            'translation': r[4],
-            'description': r[5],
-            'notes': r[6],
-            'resource_url': r[7]
-        } for r in results_strikingparts
-    }
+    # output_strikingparts = {
+    #     r[2]: {
+    #         'id_part': r[2],
+    #         'name': r[3],
+    #         'translation': r[4],
+    #         'description': r[5],
+    #         'notes': r[6],
+    #         'resource_url': r[7]
+    #     } for r in results_strikingparts
+    # }
+    objs_strikingparts = [StrikingPart.from_sql_row(row[2:8]) for row in results_strikingparts]
+    output_strikingparts = {obj.get_id():obj.model_dump() for obj in objs_strikingparts}
 
-    output_targets = {
-        r[2]: {
-            'id_target': r[2],
-            'name': r[3],
-            'original_name': r[4],
-            'description': r[5],
-            'notes': r[6],
-            'resource_url': r[7]
-        } for r in results_targets
-    }
+    # output_targets = {
+    #     r[2]: {
+    #         'id_target': r[2],
+    #         'name': r[3],
+    #         'original_name': r[4],
+    #         'description': r[5],
+    #         'notes': r[6],
+    #         'resource_url': r[7]
+    #     } for r in results_targets
+    # }
+    objs_targets = [Target.from_sql_row(row[2:8]) for row in results_targets]
+    output_targets = {obj.get_id():obj.model_dump() for obj in objs_targets}
 
     maxrel = max(
         [r[0] for r in results_targets] +
@@ -575,16 +608,18 @@ def info_technic_inventory():
             results = cur.fetchall()
     finally:
         pool.putconn(conn)
-    output = {
-            result[0]:{
-                'id_technic':result[0], 
-                 'waza':result[1], 
-                 'name':result[2], 
-                 'description':result[3], 
-                 'notes':result[4], 
-                 'resource_url':result[5]
-                }
-            for result in results}
+    # output = {
+    #         result[0]:{
+    #             'id_technic':result[0], 
+    #              'waza':result[1], 
+    #              'name':result[2], 
+    #              'description':result[3], 
+    #              'notes':result[4], 
+    #              'resource_url':result[5]
+    #             }
+    #         for result in results}
+    objs = [Technic.from_sql_row(row) for row in results]
+    output = {obj.get_id():obj.model_dump() for obj in objs}
     if results:
         return {"technics_inventory":output}
     else:
@@ -601,14 +636,16 @@ def get_stand_inventory():
             results = cur.fetchall()
     finally:
         pool.putconn(conn)
-    output = {
-        result[0]:{
-            'id_stand':result[0], 
-            'name':result[1], 
-            'description':result[2], 
-            'illustration_url':result[3], 
-            'notes':result[4]
-        } for result in results}
+    # output = {
+    #     result[0]:{
+    #         'id_stand':result[0], 
+    #         'name':result[1], 
+    #         'description':result[2], 
+    #         'illustration_url':result[3], 
+    #         'notes':result[4]
+    #     } for result in results}
+    objs = [Stand.from_sql_row(row) for row in results]
+    output = {obj.get_id():obj.model_dump() for obj in objs}
     if results:
         return {"stands_inventory":output}
     else:
@@ -625,14 +662,16 @@ def get_strikingparts_inventory():
             results = cur.fetchall()
     finally:
         pool.putconn(conn)
-    output = {result[0]:{
-            'id_part':result[0], 
-            'name':result[1], 
-            'translation':result[2], 
-            'description':result[3], 
-            'notes':result[4], 
-            'resource_url':result[5]}
-            for result in results}
+    # output = {result[0]:{
+    #         'id_part':result[0], 
+    #         'name':result[1], 
+    #         'translation':result[2], 
+    #         'description':result[3], 
+    #         'notes':result[4], 
+    #         'resource_url':result[5]}
+    #         for result in results}
+    objs = [StrikingPart.from_sql_row(row) for row in results]
+    output = {obj.get_id():obj.model_dump() for obj in objs}
     if results:
         return {"strikingparts_inventory":output}
     else:
@@ -649,14 +688,16 @@ def get_target_inventory():
             results = cur.fetchall()
     finally:
         pool.putconn(conn)
-    output = {result[0]:{
-            'id_target':result[0], 
-            'name':result[1], 
-            'original_name':result[2], 
-            'description':result[3], 
-            'notes':result[4], 
-            'resource_url':result[5]
-        } for result in results}
+    # output = {result[0]:{
+    #         'id_target':result[0], 
+    #         'name':result[1], 
+    #         'original_name':result[2], 
+    #         'description':result[3], 
+    #         'notes':result[4], 
+    #         'resource_url':result[5]
+    #     } for result in results}
+    objs = [Target.from_sql_row(row) for row in results]
+    output = {obj.get_id():obj.model_dump() for obj in objs}
     if results: 
         return {"targets_inventory":output}
     else:

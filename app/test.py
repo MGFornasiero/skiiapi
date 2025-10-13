@@ -3,6 +3,7 @@ import os
 import json
 import sys
 import psycopg2
+import psycopg2.extras
 
 # Add the project root to the Python path
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -24,46 +25,24 @@ from app.models import BunkaiInventory  # ski.bunkai_inventory() , public.get_ka
 uri = os.environ['SKIURI']
 
 
-
-
 kata_id = 2
-print("\n")
-print("\n")
-
-
-conn = psycopg2.connect(uri)
-cur = conn.cursor()
-cur.execute("SELECT id_target, name, original_name, description, notes, resource_url FROM public.get_targets();")
-result = cur.fetchall()
-tgts = [Target.from_sql_row(row) for row in result]
-rtn = {
-    "targets": [tgt.model_dump() for tgt in tgts]
-}
-print(tgts)
-print("\n")
-print(rtn)
-
-print("\n")
 
 
 
 conn = psycopg2.connect(uri)
-cur = conn.cursor()
-cur.execute(f"SELECT id_bunkai, kata_id, version, name, description, notes,resources, resource_url FROM public.get_katabunkais({kata_id});")
-result = cur.fetchall()
-bunkai_info = {
-    res[0]:{"kata_id":res[1],"version":res[2],"name":res[3],"description":res[4],"notes":res[5],"resources":res[6],"resource_url":res[7]} for res in result
-} # da implementare nel json di ritorno
-print(bunkai_info)
+psycopg2.extras.register_composite('embusen_points', conn, globally=True)
+psycopg2.extras.register_composite('bodypart', conn, globally=True)
+psycopg2.extras.register_composite('detailednotes', conn, globally=True)
 
-print("\n")
-cur.execute(f"SELECT id_bunkai,version,name,description,notes,resources FROM public.get_katabunkais({kata_id});")
-bunkais_result = cur.fetchall()
-bunkai_ids  = {
-    res[0]:{"version":res[1],"name":res[2],"description":res[3],"notes":res[4],"resources":res[5]} for res in bunkais_result
-} # da implementare nel json di ritorno
-print(bunkai_ids)
-bunkai_id = 2
+cur = conn.cursor()
+
+cur.execute(
+    f"SELECT id_sequence, kata_id, seq_num, stand_id, posizione, guardia, facing, Tecniche, embusen, kiai, notes, remarks, resources, resource_url FROM public.get_katasequence({kata_id});"
+)
+steps_result = cur.fetchone()
+print(steps_result)
+objs_steps = KataSequenceStep.from_sql_row(steps_result)
+
 
 cur.close()
 conn.close()

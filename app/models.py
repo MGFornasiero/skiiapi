@@ -127,6 +127,8 @@ class Target(BaseModel): # ski.targets , public.get_targets(), public.get_target
             notes=row[4],
             resource_url=row[5]
         )
+    def get_id(self) -> int:
+        return self.id_target
 
 
 
@@ -150,7 +152,8 @@ class StrikingPart(BaseModel): # ski.strikingparts() , public.get_strikingparts(
             notes=row[4],
             resource_url=row[5]
         )
-
+    def get_id(self) -> int:
+        return self.id_part
 
 class Technic(BaseModel): # ski.technics() , public.get_technics(), public.get_technic_info(), public.qry_ts_technics()
     id_technic: int
@@ -171,7 +174,10 @@ class Technic(BaseModel): # ski.technics() , public.get_technics(), public.get_t
             description=row[3],
             notes=row[4],
             resource_url=row[5]
-        )  
+        )
+    def get_id(self) -> int:
+        return self.id_technic
+
 
 class TechnicDecomposition(BaseModel):
     id_decomposition: int
@@ -195,6 +201,10 @@ class TechnicDecomposition(BaseModel):
             notes=row[5],
             resource_url=row[6]
         )
+    def get_id(self) -> int:
+        return self.id_decomposition
+
+
 
 
 class Stand(BaseModel):# ski.stands() , public.get_stands(), public.get_stand_info(), public.qry_ts_stands()
@@ -214,7 +224,9 @@ class Stand(BaseModel):# ski.stands() , public.get_stands(), public.get_stand_in
             description=row[2],
             illustration_url=row[3],
             notes=row[4]
-        )  
+        )
+    def get_id(self) -> int:
+        return self.id_stand
 
 class Grade(BaseModel): # ski.grades() , public.get_grade()
     id_grade: int
@@ -232,6 +244,10 @@ class Grade(BaseModel): # ski.grades() , public.get_grade()
             grade=row[2],
             color=row[3]
         )
+    def get_id(self) -> int:
+        return self.id_grade
+
+
 
 
 class KihonInventory(BaseModel): # ski.kihon_inventory() , public.get_kihons()
@@ -252,6 +268,9 @@ class KihonInventory(BaseModel): # ski.kihon_inventory() , public.get_kihons()
             resources=row[3],
             notes=row[4]
         )
+    def get_id(self) -> int:
+        return self.id_inventory
+
 
 class KihonSequence(BaseModel):
     id_sequence: int
@@ -283,6 +302,10 @@ class KihonSequence(BaseModel):
             notes=row[9],
             resource_url=row[10]
         )
+    def get_id(self) -> int:
+        return self.id_sequence
+
+
 
 class KihonTx(BaseModel):#get_kihon_tx()
     id_tx: int
@@ -308,6 +331,15 @@ class KihonTx(BaseModel):#get_kihon_tx()
             tempo=row[6],
             resource_url=row[7]
         )   
+    def get_id(self) -> int:
+        return self.id_tx
+    def get_to(self) -> int:
+        return self.to_sequence
+    def get_from(self) -> int:
+        return self.from_sequence
+
+
+
 
 class KihonStep(BaseModel): #get_kihon_steps()
     id_sequence: int
@@ -339,6 +371,8 @@ class KihonStep(BaseModel): #get_kihon_steps()
             stand_name=row[9],
             technic_name=row[10]
         )
+    def get_id(self) -> int:
+        return self.id_sequence
 
 class KihonFormatted(BaseModel): #kihon_frmlist()
     number: int
@@ -368,6 +402,16 @@ class KihonFormatted(BaseModel): #kihon_frmlist()
             target_hgt=row[8],
             notes=row[9]
         )
+    def presentation(self) -> tuple:
+        return (self.number, self.seq_num, 
+                {"movement":self.movement,
+                 "technic_id":self.technic_id,
+                 "gyaku":self.gyaku,
+                 "tecnica":self.tecnica,
+                 "stand_id":self.stand_id,
+                 "Stand":self.posizione,
+                 "Target":self.target_hgt,
+                 "Note":self.notes})
 
 
 class KataInventory(BaseModel): # ski.kata_inventory() , public.show_katainventory(), public.get_katainfo()
@@ -392,6 +436,8 @@ class KataInventory(BaseModel): # ski.kata_inventory() , public.show_katainvento
             resources=row[5],
             resource_url=row[6]
         )
+    def get_id(self) -> int:
+        return self.id_kata
 
 class KataSequence(BaseModel):
     id_sequence: int
@@ -421,7 +467,7 @@ class KataSequence(BaseModel):
             speed=row[4],
             side=row[5],
             hips=row[6],
-            embusen=row[7],
+            embusen=EmbusenPoints.model_validate(row[7]._asdict()),
             facing=row[8],
             kiai=row[9],
             notes=row[10],
@@ -429,6 +475,9 @@ class KataSequence(BaseModel):
             resources=row[12],
             resource_url=row[13]
         )
+    def get_id(self) -> int:
+        return self.id_sequence
+
 
 class KataSequenceWaza(BaseModel):
     id_kswaza: int
@@ -454,6 +503,9 @@ class KataSequenceWaza(BaseModel):
             notes=row[6],
             resources=row[7]
         )
+    def get_id(self) -> int:
+        return self.id_kswaza
+
 
 class KataTx(BaseModel):
     id_tx: int
@@ -483,12 +535,23 @@ class KataTx(BaseModel):
             resources=row[8],
             resource_url=row[9]
         )
+    def get_id(self) -> int:
+        return self.id_tx
+    def get_to(self) -> int:
+        return self.to_sequence
+    def get_from(self) -> int:
+        return self.from_sequence
+
+
 
 class KataTechnique(BaseModel): #json in tecniche di KataSequenceStep
+    id_kswaza: int
     sequence_id: int
     arto: BodyPart
     technic_id: int
     Tecnica: str | None = Field(alias="tecnica")
+    strikingpart_id: int | None
+    strikingpart_name: str | None
     technic_target_id: int | None
     Obiettivo: str | None = Field(alias="obiettivo")
     waza_note: str | None
@@ -499,15 +562,22 @@ class KataTechnique(BaseModel): #json in tecniche di KataSequenceStep
         return f"({', '.join(values)})"
     def from_sql_row(row: tuple) -> 'KataTechnique':
         return KataTechnique(
-            sequence_id=row[0],
-            arto=row[1],
-            technic_id=row[2],
-            tecnica=row[3],
-            technic_target_id=row[4],
-            obiettivo=row[5],
-            waza_note=row[6],
-            waza_resources=row[7]
+            #id_kswaza=row[0],
+            sequence_id=row[1],
+            arto=row[2],
+            technic_id=row[3],
+            tecnica=row[4],
+            strikingpart_id=row[5],
+            strikingpart_name=row[6],
+            technic_target_id=row[7],
+            obiettivo=row[8],
+            waza_note=row[9],
+            waza_resources=row[10]
         )
+    def get_id(self) -> int:
+        return self.sequence_id
+
+
 
 class KataSequenceStep(BaseModel): #get_katasequence()
     id_sequence: int
@@ -515,7 +585,9 @@ class KataSequenceStep(BaseModel): #get_katasequence()
     seq_num: int
     stand_id: int
     posizione: str | None
+    speed: Tempo | None
     guardia: Sides | None
+    hips: Hips | None
     facing: AbsoluteDirections | None
     Tecniche: List[KataTechnique] = Field(alias="tecniche")
     embusen: EmbusenPoints | None
@@ -535,16 +607,22 @@ class KataSequenceStep(BaseModel): #get_katasequence()
             seq_num=row[2],
             stand_id=row[3],
             posizione=row[4],
-            guardia=row[5],
-            facing=row[6],
-            tecniche=row[7],
-            embusen=row[8],
-            kiai=row[9],
-            notes=row[10],
-            remarks=row[11],
-            resources=row[12],
-            resource_url=row[13]
+            speed=row[5],
+            guardia=row[6],
+            hips=row[7],
+            facing=row[8],
+            tecniche=row[9],
+            embusen=row[10],
+            kiai=row[11],
+            notes=row[12],
+            remarks=row[13],
+            resources=row[14],
+            resource_url=row[15]
         )
+    def get_id(self) -> int:
+        return self.id_sequence
+
+
 
 
 class BunkaiInventory(BaseModel): # ski.bunkai_inventory() , public.get_katabunkais()
@@ -571,6 +649,10 @@ class BunkaiInventory(BaseModel): # ski.bunkai_inventory() , public.get_katabunk
             resources=row[6],
             resource_url=row[7]
         )
+    def get_id(self) -> int:
+        return self.id_bunkai
+
+
 
 class BunkaiSequence(BaseModel):
     id_bunkaisequence: int
@@ -596,3 +678,5 @@ class BunkaiSequence(BaseModel):
             resources=row[6],
             resource_url=row[7]
         )
+    def get_id(self) -> int:
+        return self.id_bunkaisequence
