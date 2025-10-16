@@ -93,8 +93,8 @@ class EmbusenPoints(BaseModel):
     y: int
 
 class BodyPart(BaseModel):
-    limb: Limbs
-    side: Sides
+    limb: Limbs | None = None
+    side: Sides | None = None
 
 class DetailedNotes(BaseModel):
     arto: BodyPart
@@ -246,8 +246,9 @@ class Grade(BaseModel): # ski.grades() , public.get_grade()
         )
     def get_id(self) -> int:
         return self.id_grade
-
-
+    
+    def presentation(self) -> tuple[int, str]:
+        return (self.id_grade, f"{self.grade}° {self.gtype}")
 
 
 class KihonInventory(BaseModel): # ski.kihon_inventory() , public.get_kihons()
@@ -438,6 +439,8 @@ class KataInventory(BaseModel): # ski.kata_inventory() , public.show_katainvento
         )
     def get_id(self) -> int:
         return self.id_kata
+    def inventory(self) -> tuple[str,int]:
+        return (self.kata, self.id_kata)
 
 class KataSequence(BaseModel):
     id_sequence: int
@@ -545,17 +548,17 @@ class KataTx(BaseModel):
 
 
 class KataTechnique(BaseModel): #json in tecniche di KataSequenceStep
-    id_kswaza: int
+    #id_kswaza: int # This seems to be missing from the get_katasequence function result
     sequence_id: int
-    arto: BodyPart
+    arto: BodyPart 
     technic_id: int
-    Tecnica: str | None = Field(alias="tecnica")
-    strikingpart_id: int | None
+    tecnica: str | None = Field(alias="Tecnica")
+    strikingpart_id: int | None = None
     strikingpart_name: str | None
     technic_target_id: int | None
-    Obiettivo: str | None = Field(alias="obiettivo")
+    obiettivo: str | None = Field(alias="Obiettivo", default=None)
     waza_note: str | None
-    waza_resources: dict | None
+    waza_resources: List[dict] | None
         
     def to_sql_values(self) -> str:
         values = [format_value(getattr(self, field)) for field in KataTechnique.model_fields]
@@ -575,7 +578,7 @@ class KataTechnique(BaseModel): #json in tecniche di KataSequenceStep
             waza_resources=row[10]
         )
     def get_id(self) -> int:
-        return self.sequence_id
+        return self.id_kswaza
 
 
 
@@ -594,7 +597,7 @@ class KataSequenceStep(BaseModel): #get_katasequence()
     kiai: bool | None
     notes: str | None
     remarks: List[DetailedNotes] | None
-    resources: dict | None
+    resources: List[dict] | None # sistemare il tupo risorse
     resource_url: str | None
         
     def to_sql_values(self) -> str:
@@ -611,12 +614,12 @@ class KataSequenceStep(BaseModel): #get_katasequence()
             guardia=row[6],
             hips=row[7],
             facing=row[8],
-            tecniche=row[9],
-            embusen=row[10],
+            tecniche=[KataTechnique.model_validate(t) for t in row[9]] if row[9] else [],
+            embusen=EmbusenPoints.model_validate(row[10]._asdict()) if row[10] else None,
             kiai=row[11],
             notes=row[12],
             remarks=row[13],
-            resources=row[14],
+            resources= row[14],
             resource_url=row[15]
         )
     def get_id(self) -> int:
@@ -680,3 +683,4 @@ class BunkaiSequence(BaseModel):
         )
     def get_id(self) -> int:
         return self.id_bunkaisequence
+

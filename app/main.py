@@ -17,6 +17,7 @@ from .models import KataInventory  # ski.kata_inventory() , public.show_katainve
 from .models import KataSequenceStep  #get_katasequence()
 from .models import KataTx
 from .models import BunkaiInventory  # ski.bunkai_inventory() , public.get_katabunkais()
+from .models import BunkaiSequence #get_bunkai()
 
 #####                       NOTE                        #####
 #    the connection is set using the env variable SKIURI    #
@@ -255,20 +256,20 @@ def kata(kata_id: int):
     try:
         with conn.cursor() as cur:
             cur.execute(
-                f"SELECT id_sequence, kata_id, seq_num, stand_id, posizione, guardia, facing, Tecniche, embusen, kiai, notes, remarks, resources, resource_url FROM public.get_katasequence({kata_id});"
+                f"SELECT id_sequence,kata_id,seq_num,stand_id,posizione,speed,guardia,hips,facing,tecniche,embusen,kiai,notes,remarks,resources,resource_url FROM public.get_katasequence({kata_id});"
             )
             steps_result = cur.fetchall()
-            print(steps_result)
             objs_steps = [KataSequenceStep.from_sql_row(row) for row in steps_result]
             cur.execute(
-                f"SELECT id_tx, from_sequence, to_sequence, tempo, direction, notes, remarks, resources, resource_url FROM public.get_katatx({kata_id});",
+                f"SELECT id_tx, from_sequence, to_sequence, tempo, direction, intermediate_stand_id, notes, remarks, resources, resource_url FROM public.get_katatx({kata_id});",
             )
             tx_result = cur.fetchall()
             objects_tx = [KataTx.from_sql_row(row) for row in tx_result]
-            cur.execute(f"SELECT kata, serie, starting_leg, notes, remarks, resources, resource_url FROM public.get_katainfo({kata_id});")
+            cur.execute(f"SELECT id_kata, kata, serie, starting_leg, notes, resources, resource_url FROM public.get_katainfo({kata_id});")
             info = cur.fetchone()
-            objects_info = KataInventory.from_sql_row(info[0])
-            cur.execute(f"SELECT id_bunkai,kata_id,version,name,description,notes,resources FROM public.get_katabunkais({kata_id});") #id_bunkai,version,name,description,notes,resources
+            objects_info = KataInventory.from_sql_row(info)
+
+            cur.execute(f"SELECT id_bunkai,kata_id,version,name,description,notes,resources,resource_url FROM public.get_katabunkais({kata_id});") #id_bunkai,version,name,description,notes,resources
             bunkais_result = cur.fetchall()
             objects_bunkai = [BunkaiInventory.from_sql_row(row) for row in bunkais_result]
 
@@ -336,18 +337,21 @@ def bunkai_inventory(kata_id: int): #err
         with conn.cursor() as cur:
             cur.execute(f"SELECT id_bunkai, kata_id, version, name, description, notes,resources, resource_url FROM public.get_katabunkais({kata_id});")
             bunkai_result = cur.fetchall()
+            objs_bunkai = [BunkaiInventory.from_sql_row(row) for row in bunkai_result]
+    
     finally:
         pool.putconn(conn)
-    print(bunkai_result)
-    bunkai_inventory = {res[0]:{
-        'kata_id': res[1],
-        'version': res[2],
-        'name': res[3],
-        'description': res[4],
-        'notes': res[5],
-        'resources': json.loads(str(res[6])) if res[6] else {},
-        'resource_url': res[7]
-    } for res in bunkai_result}
+    bunkai_inventory = {obj.get_id():obj.model_dump() for obj in objs_bunkai}
+    print(bunkai_inventory)
+    # bunkai_inventory = {res[0]:{
+    #     'kata_id': res[1],
+    #     'version': res[2],
+    #     'name': res[3],
+    #     'description': res[4],
+    #     'notes': res[5],
+    #     'resources': json.loads(str(res[6])) if res[6] else {},
+    #     'resource_url': res[7]
+    # } for res in bunkai_result}
     return {"kata_id": kata_id, "bunkai_inventory": bunkai_inventory}
 
 @app.get("/bunkai_dtls/{bunkai_id}")
@@ -357,7 +361,10 @@ def bunkaisteps(bunkai_id: int):
     try:
         with conn.cursor() as cur:
             cur.execute(f"SELECT id_bunkaisequence, bunkai_id, kata_sequence_id, description, notes, array_to_json(remarks) as remarks, resources, resource_url FROM public.get_bunkai({bunkai_id});")
-            steps_result = cur.fetchall()
+            BunkaiSequence_result = cur.fetchall()
+            print(BunkaiSequence_result)
+            obj_BunkaiSequence = [BunkaiSequence.from_sql_row(row) for row in BunkaiSequence_result]
+            print(obj_BunkaiSequence)
     finally:
         pool.putconn(conn)
     res_steps = {
@@ -380,11 +387,15 @@ def grade_inventory():
     conn = pool.getconn()
     try:
         with conn.cursor() as cur:
-            cur.execute("SELECT grade, gtype, id_grade FROM public.show_gradeinventory();")
+            cur.execute("SELECT id_grade, gtype,grade,color FROM public.show_gradeinventory();")
             results = cur.fetchall()
+            print(results)
+            obj_gredeinv = [Grade.from_sql_row(row) for row in results]
+            print(obj_gredeinv)
     finally:
         pool.putconn(conn)
-    gradi = {res[2]:f"{res[0]}° {res[1]}" for res in results} # creare funzione in models
+    #gradi = {res[2]:f"{res[0]}° {res[1]}" for res in results} # creare funzione in models
+    gradi = {k:v for k,v in (g.presentation() for g in obj_gredeinv)}
     return {"gradi": str(gradi)}
 
 @app.get("/kata_inventory")

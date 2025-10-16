@@ -4,7 +4,7 @@ import json
 import sys
 import psycopg2
 import psycopg2.extras
-
+#../cloud-sql-proxy.exe --address 127.0.0.1 --port 5432 eng-hangar-343507:europe-west12:pg-mgion
 # Add the project root to the Python path
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if project_root not in sys.path:
@@ -36,13 +36,13 @@ psycopg2.extras.register_composite('detailednotes', conn, globally=True)
 
 cur = conn.cursor()
 
-cur.execute(
-    f"SELECT id_sequence, kata_id, seq_num, stand_id, posizione, guardia, facing, Tecniche, embusen, kiai, notes, remarks, resources, resource_url FROM public.get_katasequence({kata_id});"
-)
-steps_result = cur.fetchone()
-print(steps_result)
-objs_steps = KataSequenceStep.from_sql_row(steps_result)
-
+cur.execute("SELECT id_grade, gtype,grade,color FROM public.show_gradeinventory();")
+results = cur.fetchall()
+print(results)
+obj_gredeinv = [Grade.from_sql_row(row) for row in results]
+print(obj_gredeinv)
+gradi = {k:v for k,v in (g.presentation() for g in obj_gredeinv)}
+print(gradi)
 
 cur.close()
 conn.close()
