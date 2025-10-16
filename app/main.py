@@ -146,12 +146,13 @@ def kihon_dtls(grade_id: int , sequenza: int):
         with conn.cursor() as cur:
             cur.execute(q_step)
             result_steps = cur.fetchall()
-
             objs_steps = [KihonStep.from_sql_row(row) for row in result_steps]
+            objs_steps = [KihonStep.from_sql_row(row) for row in cur]
             
             cur.execute(q_tx)
             result_tx = cur.fetchall()
             objs_tx = [KihonTx.from_sql_row(row) for row in result_tx]
+            objs_tx = [KihonTx.from_sql_row(row) for row in cur]
             
             cur.execute(f"SELECT get_kihonnotes({grade_id} ,{sequenza});") #da implementare nel json di ritorno
             result_note = cur.fetchone()
@@ -220,6 +221,7 @@ def kihon(grade_id: int):
         with conn.cursor() as cur:
             cur.execute(query)
             objs = [KihonFormatted.from_sql_row(result) for result in cur.fetchall()]
+            objs = [KihonFormatted.from_sql_row(row) for row in cur]
             cur.execute("SELECT grade, gtype FROM public.get_grade(%s);", (grade_id,))
             grade_data = cur.fetchone()
     finally:
@@ -260,11 +262,13 @@ def kata(kata_id: int):
             )
             steps_result = cur.fetchall()
             objs_steps = [KataSequenceStep.from_sql_row(row) for row in steps_result]
+            objs_steps = [KataSequenceStep.from_sql_row(row) for row in cur]
             cur.execute(
                 f"SELECT id_tx, from_sequence, to_sequence, tempo, direction, intermediate_stand_id, notes, remarks, resources, resource_url FROM public.get_katatx({kata_id});",
             )
             tx_result = cur.fetchall()
             objects_tx = [KataTx.from_sql_row(row) for row in tx_result]
+            objects_tx = [KataTx.from_sql_row(row) for row in cur]
             cur.execute(f"SELECT id_kata, kata, serie, starting_leg, notes, resources, resource_url FROM public.get_katainfo({kata_id});")
             info = cur.fetchone()
             objects_info = KataInventory.from_sql_row(info)
@@ -272,6 +276,7 @@ def kata(kata_id: int):
             cur.execute(f"SELECT id_bunkai,kata_id,version,name,description,notes,resources,resource_url FROM public.get_katabunkais({kata_id});") #id_bunkai,version,name,description,notes,resources
             bunkais_result = cur.fetchall()
             objects_bunkai = [BunkaiInventory.from_sql_row(row) for row in bunkais_result]
+            objects_bunkai = [BunkaiInventory.from_sql_row(row) for row in cur]
 
     finally:
         pool.putconn(conn)
@@ -313,7 +318,6 @@ def kata(kata_id: int):
     tx_mapping_from = {obj.get_from():obj.get_id() for obj in objects_tx} #{res[1]: res[0] for res in tx_result}
 
     bunkai_ids  = {obj.get_id():obj.model_dump() for obj in objects_bunkai} #{res[0]:{"version":res[1],"name":res[2],"description":res[3],"notes":res[4],"resources":res[5]} for res in bunkais_result}
-    print(objects_info)
     return {
         "kata_id": kata_id,
         "kata_name": info[0],
@@ -338,11 +342,11 @@ def bunkai_inventory(kata_id: int): #err
             cur.execute(f"SELECT id_bunkai, kata_id, version, name, description, notes,resources, resource_url FROM public.get_katabunkais({kata_id});")
             bunkai_result = cur.fetchall()
             objs_bunkai = [BunkaiInventory.from_sql_row(row) for row in bunkai_result]
+            objs_bunkai = [BunkaiInventory.from_sql_row(row) for row in cur]
     
     finally:
         pool.putconn(conn)
     bunkai_inventory = {obj.get_id():obj.model_dump() for obj in objs_bunkai}
-    print(bunkai_inventory)
     # bunkai_inventory = {res[0]:{
     #     'kata_id': res[1],
     #     'version': res[2],
@@ -354,7 +358,7 @@ def bunkai_inventory(kata_id: int): #err
     # } for res in bunkai_result}
     return {"kata_id": kata_id, "bunkai_inventory": bunkai_inventory}
 
-@app.get("/bunkai_dtls/{bunkai_id}")
+@app.get("/bunkai_dtls/{bunkai_id}") # da sistemare
 def bunkaisteps(bunkai_id: int):
     """Retrieves the sequence steps for a given bunkai ID."""  
     conn = pool.getconn()
@@ -362,9 +366,8 @@ def bunkaisteps(bunkai_id: int):
         with conn.cursor() as cur:
             cur.execute(f"SELECT id_bunkaisequence, bunkai_id, kata_sequence_id, description, notes, array_to_json(remarks) as remarks, resources, resource_url FROM public.get_bunkai({bunkai_id});")
             BunkaiSequence_result = cur.fetchall()
-            print(BunkaiSequence_result)
             obj_BunkaiSequence = [BunkaiSequence.from_sql_row(row) for row in BunkaiSequence_result]
-            print(obj_BunkaiSequence)
+            obj_BunkaiSequence = [BunkaiSequence.from_sql_row(row) for row in cur]
     finally:
         pool.putconn(conn)
     res_steps = {
@@ -389,9 +392,8 @@ def grade_inventory():
         with conn.cursor() as cur:
             cur.execute("SELECT id_grade, gtype,grade,color FROM public.show_gradeinventory();")
             results = cur.fetchall()
-            print(results)
             obj_gredeinv = [Grade.from_sql_row(row) for row in results]
-            print(obj_gredeinv)
+            obj_gredeinv = [Grade.from_sql_row(row) for row in cur]
     finally:
         pool.putconn(conn)
     #gradi = {res[2]:f"{res[0]}° {res[1]}" for res in results} # creare funzione in models
@@ -404,11 +406,15 @@ def kata_inventory():
     conn = pool.getconn()
     try:
         with conn.cursor() as cur:
-            cur.execute("SELECT id_kata, kata, serie, starting_leg, notes, remarks, resources, resource_url FROM public.show_katainventory();")
+            cur.execute("SELECT id_kata, kata, serie, starting_leg, notes, resources, resource_url FROM public.show_katainventory();")
             results = cur.fetchall()
+            obj_katainv = [KataInventory.from_sql_row(row) for row in results]
+            print(obj_katainv)
+            obj_katainv = [KataInventory.from_sql_row(row) for row in cur]
     finally:
         pool.putconn(conn)
-    kata = {res[1]:res[0] for res in results}
+    kata = {k:v for k,v in (k.inventory() for k in obj_katainv)}
+    #kata = {res[1]:res[0] for res in results}
     return {"kata": kata}
 
 @app.get("/info_technic/{item_id}") 
@@ -419,23 +425,26 @@ def get_info_technic(item_id: int):
         with conn.cursor() as cur:
             cur.execute(f"SELECT id_technic, waza, name, description, notes, resource_url FROM public.get_technic_info({item_id});")
             result = cur.fetchone()
+            objects_info = Technic.from_sql_row(result)
+            print(objects_info)
     finally:
         pool.putconn(conn)
     if result:
-        row = Technic.from_sql_row(result).model_dump()
+        row = objects_info.model_dump()
         #{'id_technic':result[0], 'waza':result[1], 'name':result[2], 'description':result[3], 'notes':result[4], 'resource_url':result[5]}
     else:
         row = {'id_technic':None, 'waza':None, 'name':None, 'description':None, 'notes':None, 'resource_url':None}
     return {"id":item_id,"info_technic":row}
 
-@app.get("/technics_decomposition/{item_id}")
-def get_technic_decomposition(item_id: int): #err
+@app.get("/technics_decomposition/{item_id}") # non esistono ancora
+def get_technic_decomposition(item_id: int): #da sistemare
     """Retrieves the decomposition of a specific technic by its ID."""
     conn = pool.getconn()
     try:
         with conn.cursor() as cur:
             cur.execute(f"SELECT step_num, stand_id, technic_id, gyaku, target_hgt, notes, resource_url FROM get_technic_decomposition({item_id});")
             results = cur.fetchall()
+            results = [row for row in cur]
     finally:
         pool.putconn(conn)
     output = {
@@ -517,15 +526,19 @@ def finder(search: str = ""):
         with conn.cursor() as cur:
             cur.execute("SELECT pertinenza, pertinenza_relativa, id_target, name, original_name, description, notes, resource_url FROM public.qry_ts_targets(%s);", (search,))
             results_targets = cur.fetchall()
+            results_targets = [row for row in cur]
 
             cur.execute("SELECT pertinenza, pertinenza_relativa, id_technic, waza, name, description, notes, resource_url FROM public.qry_ts_technics(%s);", (search,))
             results_technics = cur.fetchall()
+            results_technics = [row for row in cur]
 
             cur.execute("SELECT pertinenza, pertinenza_relativa, id_stand, name, description, illustration_url, notes FROM public.qry_ts_stands(%s);", (search,))
             results_stands = cur.fetchall()
+            results_stands = [row for row in cur]
 
             cur.execute("SELECT pertinenza, pertinenza_relativa, id_part, name, translation, description, notes, resource_url FROM public.qry_ts_strikingparts(%s);", (search,))
             results_strikingparts = cur.fetchall() 
+            results_strikingparts = [row for row in cur] 
     finally:
         pool.putconn(conn)
 
@@ -617,6 +630,7 @@ def info_technic_inventory():
         with conn.cursor() as cur:
             cur.execute("SELECT id_technic, waza, name, description, notes, resource_url FROM public.get_technics();")
             results = cur.fetchall()
+            objs = [Technic.from_sql_row(row) for row in cur]
     finally:
         pool.putconn(conn)
     # output = {
@@ -632,6 +646,7 @@ def info_technic_inventory():
     objs = [Technic.from_sql_row(row) for row in results]
     output = {obj.get_id():obj.model_dump() for obj in objs}
     if results:
+    if output:
         return {"technics_inventory":output}
     else:
         return {"technics_inventory":[]}
@@ -645,6 +660,7 @@ def get_stand_inventory():
         with conn.cursor() as cur:
             cur.execute("SELECT id_stand, name, description, illustration_url, notes FROM public.get_stands();")
             results = cur.fetchall()
+            objs = [Stand.from_sql_row(row) for row in cur]
     finally:
         pool.putconn(conn)
     # output = {
@@ -658,6 +674,7 @@ def get_stand_inventory():
     objs = [Stand.from_sql_row(row) for row in results]
     output = {obj.get_id():obj.model_dump() for obj in objs}
     if results:
+    if output:
         return {"stands_inventory":output}
     else:
         return {"stands_inventory":[]}
@@ -671,6 +688,7 @@ def get_strikingparts_inventory():
         with conn.cursor() as cur:
             cur.execute("SELECT id_part, name, translation, description, notes, resource_url FROM public.get_strikingparts();")
             results = cur.fetchall()
+            objs = [StrikingPart.from_sql_row(row) for row in cur]
     finally:
         pool.putconn(conn)
     # output = {result[0]:{
@@ -684,6 +702,7 @@ def get_strikingparts_inventory():
     objs = [StrikingPart.from_sql_row(row) for row in results]
     output = {obj.get_id():obj.model_dump() for obj in objs}
     if results:
+    if output:
         return {"strikingparts_inventory":output}
     else:
         return {"strikingparts_inventory":[]}
@@ -697,6 +716,7 @@ def get_target_inventory():
         with conn.cursor() as cur:
             cur.execute("SELECT id_target, name, original_name, description, notes, resource_url FROM public.get_targets();")
             results = cur.fetchall()
+            objs = [Target.from_sql_row(row) for row in cur]
     finally:
         pool.putconn(conn)
     # output = {result[0]:{
@@ -710,6 +730,7 @@ def get_target_inventory():
     objs = [Target.from_sql_row(row) for row in results]
     output = {obj.get_id():obj.model_dump() for obj in objs}
     if results: 
+    if output: 
         return {"targets_inventory":output}
     else:
         return {"targets_inventory":[]}
@@ -723,6 +744,7 @@ def present_kata(kata_id: int):
         with conn.cursor() as cur:
             cur.execute(f"SELECT * FROM public.info_kata({kata_id});")
             result = cur.fetchall()
+            result = [row for row in cur]
     finally:
         pool.putconn(conn)
 
@@ -755,124 +777,3 @@ def get_secure_data():
 
 
 # --- POST: Insert Target ---
-
-@app.put("/admin/insert/targets/bulk", status_code=201)
-def create_targets_bulk(targets: List[Target], api_key: str = Depends(get_admin_api_key)): #blocco di record
-    """
-    Inserts multiple Target rows in a single transaction.
-    """
-    conn = psycopg2.connect(admin_uri)
-    cur = conn.cursor()
-    print(targets)
-    values = ",".join([t.to_sql_values() for t in targets])
-    col_list=[f for f in Target.model_fields]
-    columns = ", ".join(col_list)
-    upsertspecification = ", ".join([f"{col}=EXCLUDED.{col}" for col in col_list])
-    print(values)
-    print(columns)
-    upsertquery = f"""INSERT INTO ski.targets({columns})
-    VALUES {values}
-        ON CONFLICT (id_target)
-        DO UPDATE SET {upsertspecification}
-      RETURNING {columns};
-    """
-    print(upsertquery)
-    try:
-        cur.execute(upsertquery)
-        conn.commit()
-        res_targets = cur.fetchall()
-        targets = [
-            Target(
-                id_target=row[0],
-                name=row[1],
-                original_name=row[2],
-                description=row[3],
-                notes=row[4],
-                resource_url=row[5],
-            )
-            for row in res_targets
-        ]
-        return {"message": "Inserted", 
-                "target": targets
-        }
-
-    except psycopg2.Error as e:
-        conn.rollback()
-        raise HTTPException(status_code=400, detail=f"Database error: {e.pgerror}")
-    finally:
-        cur.close()
-        conn.close()
-@app.put("/admin/delete/targets/bulk", status_code=201)
-
-def delete_targets_bulk(ids: List[int], api_key: str = Depends(get_admin_api_key)):
-    conn = psycopg2.connect(admin_uri)
-    cur = conn.cursor()
-    print(ids)
-    values = ",".join([f"( {i} )" for i in ids])
-    col_list=[f for f in Target.model_fields]
-    columns = ", ".join(col_list)
-    # upsertspecification = ", ".join([f"{col}=EXCLUDED.{col}" for col in col_list])
-    print(values)
-    # print(columns)
-    deletequery = f"""
-    WITH to_delete AS (
-        SELECT unnest(ARRAY[{','.join(map(str, ids))}]) AS ids
-    )
-    DELETE FROM ski.targets
-    WHERE id_target IN (SELECT ids FROM to_delete)
-    RETURNING {columns};
-    """
-    print(deletequery)
-    try:
-        cur.execute(deletequery)
-        conn.commit()
-        res_targets = cur.fetchall()
-        print(res_targets)
-        targets = [
-            Target(
-                id_target=row[0],
-                name=row[1],
-                original_name=row[2],
-                description=row[3],
-                notes=row[4],
-                resource_url=row[5],
-            )
-            for row in res_targets
-        ]
-        return {"message": "Deleted", 
-                "target": targets
-        }
-
-    except psycopg2.Error as e:
-        conn.rollback()
-        raise HTTPException(status_code=400, detail=f"Database error: {e.pgerror}")
-    finally:
-        cur.close()
-        conn.close()
-
-@app.get("/admin/select/targets/all", dependencies=[Depends(get_admin_api_key)])
-def select_targets():
-    """
-    """
-    conn = psycopg2.connect(admin_uri)
-    cur = conn.cursor()
-    cur.execute("SELECT id_target,name,original_name,description,notes,resource_url FROM ski.targets;")
-    res_targets = cur.fetchall()
-    cur.close()
-    conn.close()
-    targets = [
-        Target(
-            id_target=row[0],
-            name=row[1],
-            original_name=row[2],
-            description=row[3],
-            notes=row[4],
-            resource_url=row[5],
-        )
-        for row in res_targets
-    ]
-    return {"message": "Target content", 
-            "target": targets
-    }
-
-#StrikingPart Technic Stand Grade
