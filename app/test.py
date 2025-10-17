@@ -25,7 +25,7 @@ from app.models import BunkaiInventory  # ski.bunkai_inventory() , public.get_ka
 uri = os.environ['SKIURI']
 
 
-kata_id = 2
+kata_id = 1
 
 
 
@@ -36,13 +36,18 @@ psycopg2.extras.register_composite('detailednotes', conn, globally=True)
 
 cur = conn.cursor()
 
-cur.execute("SELECT id_grade, gtype,grade,color FROM public.show_gradeinventory();")
-results = cur.fetchall()
-print(results)
-obj_gredeinv = [Grade.from_sql_row(row) for row in results]
-print(obj_gredeinv)
-gradi = {k:v for k,v in (g.presentation() for g in obj_gredeinv)}
-print(gradi)
+cur.execute(
+    f"SELECT id_sequence,kata_id,seq_num,stand_id,posizione,speed,guardia,hips,facing,tecniche,embusen,kiai,notes,remarks,resources,resource_url FROM public.get_katasequence({kata_id});"
+)
+res_cur = cur.fetchall()
+#print(res_cur)
+for row in res_cur:
+    print(row)
+    print(KataSequenceStep.from_sql_row(row))
+    print("------------------------------------------------------------------------------")
+
+#objs_steps = [KataSequenceStep.from_sql_row(row) for row in res_cur]
+#print(objs_steps)
 
 cur.close()
 conn.close()

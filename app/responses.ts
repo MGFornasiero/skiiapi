@@ -1,3 +1,19 @@
+import { 
+    AbsoluteDirections, BodyPart, DetailedNotes, EmbusenPoints, Hips, KataSeries, Limbs, 
+    Movements, Sides, TargetHgt, Tempo, WazaType 
+} from "./type_admin_fe";
+
+// For /grade_id/{gradetype}/{grade}
+export interface GradeIdResponse {
+  grade: number;
+}
+
+// For /numberofkihon/{grade_id}
+export interface NumberOfKihonResponse {
+  grade: number;
+  n_kihon: number;
+}
+
 // For /grade_inventory
 export interface GradeInventory {
   gradi: string; // Note: This is a stringified dictionary
@@ -62,93 +78,100 @@ export interface TargetInfo {
 export interface TargetInventory {
   targets_inventory: Record<string, TargetInfo>;
 }
-export interface KihonStep {
+
+// For /kihon_list/{grade_id}/{sequenza}
+export interface KihonStepInfo {
   id_sequence: number;
   inventory_id: number;
   seq_num: number;
-  stand: number;
-  techinc: number; // Typo in original Python code
-  gyaku: boolean;
-  target_hgt: string;
+  stand_id: number;
+  technic_id: number;
+  gyaku: boolean | null;
+  target_hgt: TargetHgt | null;
   notes: string | null;
   resource_url: string | null;
-  stand_name: string;
-  technic_name: string;
+  stand_name: string | null;
+  technic_name: string | null;
 }
-
 export interface KihonTransaction {
-  movement: string;
-  tempo: string;
+  id_tx: number;
+  from_sequence: number;
+  to_sequence: number;
+  movement: Movements | null;
+  resources: Record<string, any> | null;
   notes: string | null;
+  tempo: Tempo | null;
   resource_url: string | null;
 }
 
-export interface KihonDetails {
+export interface KihonListResponse {
   grade: string;
   grade_id: number;
   note: string | null;
   sequenza_n: number;
-  tecniche: Record<string, KihonStep>;
+  tecniche: Record<string, KihonStepInfo>;
   transactions: Record<string, KihonTransaction>;
   transactions_mapping_from: Record<string, number>;
   transactions_mapping_to: Record<string, number>;
 }
-export interface KataStep {
+
+// For /kata/{kata_id}
+export interface KataTechnique {
+    sequence_id: number;
+    arto: BodyPart;
+    technic_id: number;
+    tecnica: string | null; // Alias for Tecnica
+    strikingpart_id: number | null;
+    strikingpart_name: string | null;
+    technic_target_id: number | null;
+    obiettivo: string | null; // Alias for Obiettivo
+    waza_note: string | null;
+    waza_resources: Record<string, any>[] | null;
+}
+
+export interface KataSequenceStep {
   id_sequence: number;
   kata_id: number;
   seq_num: number;
   stand_id: number;
-  posizione: string;
-  guardia: string;
-  facing: number;
-  tecniche: any; // Type could be more specific if the structure is known
-  embusen: number;
+  posizione: string | null;
+  speed: Tempo | null;
+  guardia: Sides | null;
+  hips: Hips | null;
+  facing: AbsoluteDirections | null;
+  Tecniche: KataTechnique[]; // Alias for tecniche
+  embusen: EmbusenPoints | null;
   kiai: boolean;
   notes: string | null;
-  remarks: DetailedNote[] | null;
+  remarks: DetailedNotes[] | null;
   resources: Record<string, any> | null;
   resource_url: string | null;
 }
 
-export interface KataDetails {
-  id_sequence: number;
-  kata_id: number;
-  seq_num: number;
-  stand_id: number;
-  posizione: string;
-  guardia: string;
-  facing: number;
-  tecniche: any; // Type could be more specific if the structure is known
-  embusen: number;
-  kiai: boolean;
-  notes: string | null;
-  remarks: DetailedNote[] | null;
-  resources: Record<string, any> | null;
-  resource_url: string | null;
-}
-
-export interface KataDetails {
+export interface KataResponse {
   kata_id: number;
   kata_name: string;
-  serie: string;
+  serie: KataSeries | null;
   Gamba: string;
   notes: string | null;
-  remarks: DetailedNote[] | null;
   resources: Record<string, any> | null;
   resource_url: string | null;
-  steps: Record<string, KataStep>;
+  steps: Record<string, KataSequenceStep>;
   transactions: Record<string, KataTransaction>;
   transactions_mapping_from: Record<string, number>;
   transactions_mapping_to: Record<string, number>;
   bunkai_ids: Record<string, BunkaiSummary>;
 }
 
-
 export interface KataTransaction {
-  tempo: string;
-  direction: string;
-  note: string | null;
-  remarks: DetailedNote[] | null;
+  id_tx: number;
+  from_sequence: number;
+  to_sequence: number;
+  tempo: Tempo | null;
+  direction: Sides | null;
+  intermediate_stand_id: number | null;
+  notes: string | null;
+  remarks: DetailedNotes[] | null;
   resources: Record<string, any> | null;
   resource_url: string | null;
 }
@@ -158,18 +181,12 @@ export interface BunkaiSummary {
   name: string;
   description: string | null;
   notes: string | null;
-  resources: Record<string, any> | null;
+  resources: Record<string, any> | null; // This is from BunkaiInventory model
+  resource_url: string | null;
 }
-
-export interface DetailedNote {
-  arto: string; // Corresponds to 'public.arti' enum/type in the DB
-  description: string | null;
-  explatation: string | null; // Typo from DB, likely 'explanation'
-  note: string | null;
-}
-
-
+// For /bunkai_inventory/{kata_id}
 export interface BunkaiInfo {
+  id_bunkai: number;
   kata_id: number;
   version: number;
   name: string;
@@ -179,18 +196,19 @@ export interface BunkaiInfo {
   resource_url: string | null;
 }
 
-export interface BunkaiInventory {
+export interface BunkaiInventoryResponse {
   kata_id: number;
   bunkai_inventory: Record<string, BunkaiInfo>;
 }
 
+// For /bunkai_dtls/{bunkai_id}
 export interface BunkaiStep {
   id_bunkaisequence: number;
   bunkai_id: number;
   kata_sequence_id: number;
   description: string | null;
   notes: string | null;
-  remarks: DetailedNote[] | null;
+  remarks: DetailedNotes[] | null;
   resources: Record<string, any> | null;
   resource_url: string | null;
 }
@@ -199,6 +217,8 @@ export interface BunkaiDetails {
   bunkai_id: number;
   bunkai_steps: Record<string, BunkaiStep>;
 }
+
+// For /finder
 export interface Relevance {
   abs_relevance: number;
   relative_relevance: number;
@@ -217,25 +237,90 @@ export interface FinderResult {
   Striking_parts: Record<string, StrikingPartInfo>;
 }
 
-export interface KihonsApiResponse {
+// For /info_technic/{item_id}
+export interface InfoTechnicResponse {
+    id: number;
+    info_technic: TechnicInfo | {
+        id_technic: null;
+        waza: null;
+        name: null;
+        description: null;
+        notes: null;
+        resource_url: null;
+    };
+}
+
+// For /technics_decomposition/{item_id}
+export interface TechnicDecompositionStep {
+    step_num: number;
+    stand_id: number;
+    technic_id: number;
+    gyaku: boolean;
+    target_hgt: TargetHgt;
+    notes: string | null;
+    resource_url: string | null;
+}
+
+export interface TechnicDecompositionResponse {
+    id: number;
+    technic_decomposition: Record<string, TechnicDecompositionStep> | [];
+}
+
+// For /info_stand/{item_id}
+export interface InfoStandResponse {
+    id: number;
+    info_stand: StandInfo | {
+        id_stand: null;
+        name: null;
+        description: null;
+        illustration_url: null;
+        notes: null;
+    };
+}
+
+// For /info_strikingparts/{item_id}
+export interface InfoStrikingPartsResponse {
+    id: number;
+    info_strikingparts: StrikingPartInfo | {
+        id_part: null;
+        name: null;
+        translation: null;
+        description: null;
+        notes: null;
+        resource_url: null;
+    };
+}
+
+// For /kihons/{grade_id}
+export interface KihonsResponse {
   grade: string;
   grade_id: number;
   kihons: KihonSequences;
 }
 
 export interface KihonSequences {
-  [sequenzaNumber: string]: {
-    [passaggioNumber: string]: KihonStepDetails;
+  [number: string]: {
+    [seq_num: string]: KihonFormattedDetails;
   };
 }
 
-export interface KihonStepDetails {
-  movement: string | null;
+export interface KihonFormattedDetails {
+  movement: Movements | null;
   technic_id: number;
-  gyaku: boolean;
-  tecnica: string;
+  gyaku: boolean | null;
+  tecnica: string | null;
   stand_id: number;
-  Stand: string;
-  Target: string;
+  Stand: string | null;
+  Target: TargetHgt | null;
   Note: string | null;
+}
+
+// For /utils/present_kata/{kata_id}
+export interface PresentKataResponse {
+    info: Record<string, KataSequenceStep>;
+}
+
+// For /secure/
+export interface SecureDataResponse {
+    data: string;
 }

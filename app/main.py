@@ -255,7 +255,9 @@ def kata(kata_id: int):
             cur.execute(
                 f"SELECT id_sequence,kata_id,seq_num,stand_id,posizione,speed,guardia,hips,facing,tecniche,embusen,kiai,notes,remarks,resources,resource_url FROM public.get_katasequence({kata_id});"
             )
-            objs_steps = [KataSequenceStep.from_sql_row(row) for row in cur]
+            res_cur = cur.fetchall()
+            print(res_cur)
+            objs_steps = [KataSequenceStep.from_sql_row(row) for row in res_cur]
             cur.execute(
                 f"SELECT id_tx, from_sequence, to_sequence, tempo, direction, intermediate_stand_id, notes, remarks, resources, resource_url FROM public.get_katatx({kata_id});",
             )
@@ -274,7 +276,7 @@ def kata(kata_id: int):
     #     step[2]: {
     #         'id_sequence': step[0],
     #         'kata_id': step[1],
-    #         'seq_num': step[2],
+    #         'seq_num': step[2],cd
     #         'stand_id': step[3],
     #         'posizione': step[4],
     #         'guardia': step[5],
@@ -309,19 +311,20 @@ def kata(kata_id: int):
     bunkai_ids  = {obj.get_id():obj.model_dump() for obj in objects_bunkai} #{res[0]:{"version":res[1],"name":res[2],"description":res[3],"notes":res[4],"resources":res[5]} for res in bunkais_result}
     return {
         "kata_id": kata_id,
-        "kata_name": info[0],
-        "serie": info[1],
-        "Gamba": info[2],
-        "notes": info[3],
-        "remarks": info[4],
-        "resources": info[5],
-        "resource_url": info[6],
+        "kata_name": objects_info.kata,
+        "serie": objects_info.serie,
+        "Gamba": objects_info.starting_leg,
+        "notes": objects_info.notes,
+        #"remarks": info[4],
+        "resources": objects_info.resources,
+        "resource_url": objects_info.resource_url,
         "steps": res_steps,
         "transactions": transaction,
         "transactions_mapping_from": tx_mapping_from,
         "transactions_mapping_to": tx_mapping_to,
         "bunkai_ids": bunkai_ids
-    }
+    }   
+
 @app.get("/bunkai_inventory/{kata_id}")
 def bunkai_inventory(kata_id: int): #err
     """Retrieves the inventory of all bunkais for a given kata ID."""
@@ -365,7 +368,7 @@ def bunkaisteps(bunkai_id: int):
             'remarks': step[5],
             'resources': step[6],
             'resource_url': step[7]
-        } for step in steps_result
+        } for step in obj_BunkaiSequence
     }
     return {"bunkai_id": bunkai_id, "bunkai_steps": res_steps}
 

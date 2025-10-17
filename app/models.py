@@ -534,7 +534,12 @@ class KataTx(BaseModel):
             direction=row[4],
             intermediate_stand_id=row[5],
             notes=row[6],
-            remarks=row[7],
+            remarks=[
+                DetailedNotes.model_validate(
+                    {**t._asdict(), 'arto': t.arto._asdict()}
+                ) for t in row[7]
+            ] if row[7] else None,
+            #remarks=row[7],
             resources=row[8],
             resource_url=row[9]
         )
@@ -597,7 +602,7 @@ class KataSequenceStep(BaseModel): #get_katasequence()
     kiai: bool | None
     notes: str | None
     remarks: List[DetailedNotes] | None
-    resources: List[dict] | None # sistemare il tupo risorse
+    resources: dict | None # sistemare il tupo risorse
     resource_url: str | None
         
     def to_sql_values(self) -> str:
@@ -618,7 +623,11 @@ class KataSequenceStep(BaseModel): #get_katasequence()
             embusen=EmbusenPoints.model_validate(row[10]._asdict()) if row[10] else None,
             kiai=row[11],
             notes=row[12],
-            remarks=row[13],
+            remarks=[
+                DetailedNotes.model_validate(
+                    {**t._asdict(), 'arto': t.arto._asdict()}
+                ) for t in row[13]
+            ] if row[13] else None,
             resources= row[14],
             resource_url=row[15]
         )
@@ -683,4 +692,3 @@ class BunkaiSequence(BaseModel):
         )
     def get_id(self) -> int:
         return self.id_bunkaisequence
-
