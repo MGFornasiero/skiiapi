@@ -145,13 +145,9 @@ def kihon_dtls(grade_id: int , sequenza: int):
     try:
         with conn.cursor() as cur:
             cur.execute(q_step)
-            result_steps = cur.fetchall()
-            objs_steps = [KihonStep.from_sql_row(row) for row in result_steps]
             objs_steps = [KihonStep.from_sql_row(row) for row in cur]
             
             cur.execute(q_tx)
-            result_tx = cur.fetchall()
-            objs_tx = [KihonTx.from_sql_row(row) for row in result_tx]
             objs_tx = [KihonTx.from_sql_row(row) for row in cur]
             
             cur.execute(f"SELECT get_kihonnotes({grade_id} ,{sequenza});") #da implementare nel json di ritorno
@@ -220,7 +216,6 @@ def kihon(grade_id: int):
     try:
         with conn.cursor() as cur:
             cur.execute(query)
-            objs = [KihonFormatted.from_sql_row(result) for result in cur.fetchall()]
             objs = [KihonFormatted.from_sql_row(row) for row in cur]
             cur.execute("SELECT grade, gtype FROM public.get_grade(%s);", (grade_id,))
             grade_data = cur.fetchone()
@@ -260,22 +255,16 @@ def kata(kata_id: int):
             cur.execute(
                 f"SELECT id_sequence,kata_id,seq_num,stand_id,posizione,speed,guardia,hips,facing,tecniche,embusen,kiai,notes,remarks,resources,resource_url FROM public.get_katasequence({kata_id});"
             )
-            steps_result = cur.fetchall()
-            objs_steps = [KataSequenceStep.from_sql_row(row) for row in steps_result]
             objs_steps = [KataSequenceStep.from_sql_row(row) for row in cur]
             cur.execute(
                 f"SELECT id_tx, from_sequence, to_sequence, tempo, direction, intermediate_stand_id, notes, remarks, resources, resource_url FROM public.get_katatx({kata_id});",
             )
-            tx_result = cur.fetchall()
-            objects_tx = [KataTx.from_sql_row(row) for row in tx_result]
             objects_tx = [KataTx.from_sql_row(row) for row in cur]
             cur.execute(f"SELECT id_kata, kata, serie, starting_leg, notes, resources, resource_url FROM public.get_katainfo({kata_id});")
             info = cur.fetchone()
             objects_info = KataInventory.from_sql_row(info)
 
             cur.execute(f"SELECT id_bunkai,kata_id,version,name,description,notes,resources,resource_url FROM public.get_katabunkais({kata_id});") #id_bunkai,version,name,description,notes,resources
-            bunkais_result = cur.fetchall()
-            objects_bunkai = [BunkaiInventory.from_sql_row(row) for row in bunkais_result]
             objects_bunkai = [BunkaiInventory.from_sql_row(row) for row in cur]
 
     finally:
@@ -340,8 +329,6 @@ def bunkai_inventory(kata_id: int): #err
     try:
         with conn.cursor() as cur:
             cur.execute(f"SELECT id_bunkai, kata_id, version, name, description, notes,resources, resource_url FROM public.get_katabunkais({kata_id});")
-            bunkai_result = cur.fetchall()
-            objs_bunkai = [BunkaiInventory.from_sql_row(row) for row in bunkai_result]
             objs_bunkai = [BunkaiInventory.from_sql_row(row) for row in cur]
     
     finally:
@@ -365,8 +352,6 @@ def bunkaisteps(bunkai_id: int):
     try:
         with conn.cursor() as cur:
             cur.execute(f"SELECT id_bunkaisequence, bunkai_id, kata_sequence_id, description, notes, array_to_json(remarks) as remarks, resources, resource_url FROM public.get_bunkai({bunkai_id});")
-            BunkaiSequence_result = cur.fetchall()
-            obj_BunkaiSequence = [BunkaiSequence.from_sql_row(row) for row in BunkaiSequence_result]
             obj_BunkaiSequence = [BunkaiSequence.from_sql_row(row) for row in cur]
     finally:
         pool.putconn(conn)
@@ -391,8 +376,6 @@ def grade_inventory():
     try:
         with conn.cursor() as cur:
             cur.execute("SELECT id_grade, gtype,grade,color FROM public.show_gradeinventory();")
-            results = cur.fetchall()
-            obj_gredeinv = [Grade.from_sql_row(row) for row in results]
             obj_gredeinv = [Grade.from_sql_row(row) for row in cur]
     finally:
         pool.putconn(conn)
@@ -407,9 +390,6 @@ def kata_inventory():
     try:
         with conn.cursor() as cur:
             cur.execute("SELECT id_kata, kata, serie, starting_leg, notes, resources, resource_url FROM public.show_katainventory();")
-            results = cur.fetchall()
-            obj_katainv = [KataInventory.from_sql_row(row) for row in results]
-            print(obj_katainv)
             obj_katainv = [KataInventory.from_sql_row(row) for row in cur]
     finally:
         pool.putconn(conn)
@@ -443,7 +423,6 @@ def get_technic_decomposition(item_id: int): #da sistemare
     try:
         with conn.cursor() as cur:
             cur.execute(f"SELECT step_num, stand_id, technic_id, gyaku, target_hgt, notes, resource_url FROM get_technic_decomposition({item_id});")
-            results = cur.fetchall()
             results = [row for row in cur]
     finally:
         pool.putconn(conn)
@@ -525,19 +504,15 @@ def finder(search: str = ""):
     try:
         with conn.cursor() as cur:
             cur.execute("SELECT pertinenza, pertinenza_relativa, id_target, name, original_name, description, notes, resource_url FROM public.qry_ts_targets(%s);", (search,))
-            results_targets = cur.fetchall()
             results_targets = [row for row in cur]
 
             cur.execute("SELECT pertinenza, pertinenza_relativa, id_technic, waza, name, description, notes, resource_url FROM public.qry_ts_technics(%s);", (search,))
-            results_technics = cur.fetchall()
             results_technics = [row for row in cur]
 
             cur.execute("SELECT pertinenza, pertinenza_relativa, id_stand, name, description, illustration_url, notes FROM public.qry_ts_stands(%s);", (search,))
-            results_stands = cur.fetchall()
             results_stands = [row for row in cur]
 
             cur.execute("SELECT pertinenza, pertinenza_relativa, id_part, name, translation, description, notes, resource_url FROM public.qry_ts_strikingparts(%s);", (search,))
-            results_strikingparts = cur.fetchall() 
             results_strikingparts = [row for row in cur] 
     finally:
         pool.putconn(conn)
@@ -629,7 +604,6 @@ def info_technic_inventory():
     try:
         with conn.cursor() as cur:
             cur.execute("SELECT id_technic, waza, name, description, notes, resource_url FROM public.get_technics();")
-            results = cur.fetchall()
             objs = [Technic.from_sql_row(row) for row in cur]
     finally:
         pool.putconn(conn)
@@ -643,9 +617,7 @@ def info_technic_inventory():
     #              'resource_url':result[5]
     #             }
     #         for result in results}
-    objs = [Technic.from_sql_row(row) for row in results]
     output = {obj.get_id():obj.model_dump() for obj in objs}
-    if results:
     if output:
         return {"technics_inventory":output}
     else:
@@ -659,7 +631,6 @@ def get_stand_inventory():
     try:
         with conn.cursor() as cur:
             cur.execute("SELECT id_stand, name, description, illustration_url, notes FROM public.get_stands();")
-            results = cur.fetchall()
             objs = [Stand.from_sql_row(row) for row in cur]
     finally:
         pool.putconn(conn)
@@ -671,9 +642,7 @@ def get_stand_inventory():
     #         'illustration_url':result[3], 
     #         'notes':result[4]
     #     } for result in results}
-    objs = [Stand.from_sql_row(row) for row in results]
     output = {obj.get_id():obj.model_dump() for obj in objs}
-    if results:
     if output:
         return {"stands_inventory":output}
     else:
@@ -687,7 +656,6 @@ def get_strikingparts_inventory():
     try:
         with conn.cursor() as cur:
             cur.execute("SELECT id_part, name, translation, description, notes, resource_url FROM public.get_strikingparts();")
-            results = cur.fetchall()
             objs = [StrikingPart.from_sql_row(row) for row in cur]
     finally:
         pool.putconn(conn)
@@ -699,9 +667,7 @@ def get_strikingparts_inventory():
     #         'notes':result[4], 
     #         'resource_url':result[5]}
     #         for result in results}
-    objs = [StrikingPart.from_sql_row(row) for row in results]
     output = {obj.get_id():obj.model_dump() for obj in objs}
-    if results:
     if output:
         return {"strikingparts_inventory":output}
     else:
@@ -715,7 +681,6 @@ def get_target_inventory():
     try:
         with conn.cursor() as cur:
             cur.execute("SELECT id_target, name, original_name, description, notes, resource_url FROM public.get_targets();")
-            results = cur.fetchall()
             objs = [Target.from_sql_row(row) for row in cur]
     finally:
         pool.putconn(conn)
@@ -727,42 +692,42 @@ def get_target_inventory():
     #         'notes':result[4], 
     #         'resource_url':result[5]
     #     } for result in results}
-    objs = [Target.from_sql_row(row) for row in results]
     output = {obj.get_id():obj.model_dump() for obj in objs}
-    if results: 
     if output: 
         return {"targets_inventory":output}
     else:
         return {"targets_inventory":[]}
     
 
-@app.get("/utils/present_kata/{kata_id}")  
+@app.get("/utils/present_kata/{kata_id}")  # forse da eliminare
 def present_kata(kata_id: int):
     """Checks if a kata with the given ID exists in the database."""
     conn = pool.getconn()
     try:
         with conn.cursor() as cur:
-            cur.execute(f"SELECT * FROM public.info_kata({kata_id});")
-            result = cur.fetchall()
-            result = [row for row in cur]
+            cur.execute(
+                f"SELECT id_sequence,kata_id,seq_num,stand_id,posizione,speed,guardia,hips,facing,tecniche,embusen,kiai,notes,remarks,resources,resource_url FROM public.get_katasequence({kata_id});"
+            )
+            objs_steps = [KataSequenceStep.from_sql_row(row) for row in cur]
     finally:
         pool.putconn(conn)
 
-    present = {res[0]:{
-        "id_sequence" :  res[0],
-        "kata_id" :  res[1],
-        "seq_num" :  res[2],
-        "stand_id" :  res[3],
-        "stand_name" :  res[4],
-        "speed" :  res[5],
-        "side" :  res[6],
-        "hips" :  res[7],
-        "embusen" :  res[8],
-        "facing" :  res[9],
-        "kiai" :  res[10],
-        "notes" :  res[11],
-        "Tecniche" :  res[12]
-    } for res in result}
+    # present = {res[0]:{
+    #     "id_sequence" :  res[0],
+    #     "kata_id" :  res[1],
+    #     "seq_num" :  res[2],
+    #     "stand_id" :  res[3],
+    #     "stand_name" :  res[4],
+    #     "speed" :  res[5],
+    #     "side" :  res[6],
+    #     "hips" :  res[7],
+    #     "embusen" :  res[8],
+    #     "facing" :  res[9],
+    #     "kiai" :  res[10],
+    #     "notes" :  res[11],
+    #     "Tecniche" :  res[12]
+    # } for res in result}
+    present = {obj.get_id():obj.model_dump() for obj in objs_steps}
     return {"info": present}
 
 
