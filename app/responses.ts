@@ -98,7 +98,7 @@ export interface KihonTransaction {
   from_sequence: number;
   to_sequence: number;
   movement: Movements | null;
-  resources: Record<string, any> | null;
+  resources: Record<string, any> | Record<string, any>[] | null;
   notes: string | null;
   tempo: Tempo | null;
   resource_url: string | null;
@@ -118,15 +118,15 @@ export interface KihonListResponse {
 // For /kata/{kata_id}
 export interface KataTechnique {
     sequence_id: number;
-    arto: BodyPart;
+    arto: BodyPart | null;               // from models: arto can be nullable
     technic_id: number;
-    tecnica: string | null; // Alias for Tecnica
+    tecnica: string | null;              // model attribute name is 'tecnica' (alias "Tecnica")
     strikingpart_id: number | null;
     strikingpart_name: string | null;
     technic_target_id: number | null;
-    obiettivo: string | null; // Alias for Obiettivo
+    obiettivo: string | null;            // model attribute name is 'obiettivo' (alias "Obiettivo")
     waza_note: string | null;
-    waza_resources: Record<string, any>[] | null;
+    waza_resources: Record<string, any>[] | Record<string, any> | null; // allow single or multiple records
 }
 
 export interface KataSequenceStep {
@@ -139,12 +139,12 @@ export interface KataSequenceStep {
   guardia: Sides | null;
   hips: Hips | null;
   facing: AbsoluteDirections | null;
-  Tecniche: KataTechnique[]; // Alias for tecniche
+  Tecniche: KataTechnique[];           // model field name is 'Tecniche' (capital T)
   embusen: EmbusenPoints | null;
-  kiai: boolean;
+  kiai: boolean | null;                // can be null according to models
   notes: string | null;
   remarks: DetailedNotes[] | null;
-  resources: Record<string, any> | null;
+  resources: Record<string, any> | Record<string, any>[] | null;
   resource_url: string | null;
 }
 
@@ -152,9 +152,9 @@ export interface KataResponse {
   kata_id: number;
   kata_name: string;
   serie: KataSeries | null;
-  Gamba: string;
+  Gamba: Sides;                         // starting_leg is a Sides enum in models
   notes: string | null;
-  resources: Record<string, any> | null;
+  resources: Record<string, any> | Record<string, any>[] | null;
   resource_url: string | null;
   steps: Record<string, KataSequenceStep>;
   transactions: Record<string, KataTransaction>;
@@ -172,7 +172,7 @@ export interface KataTransaction {
   intermediate_stand_id: number | null;
   notes: string | null;
   remarks: DetailedNotes[] | null;
-  resources: Record<string, any> | null;
+  resources: Record<string, any> | Record<string, any>[] | null;
   resource_url: string | null;
 }
 
@@ -181,7 +181,7 @@ export interface BunkaiSummary {
   name: string;
   description: string | null;
   notes: string | null;
-  resources: Record<string, any> | null; // This is from BunkaiInventory model
+  resources: Record<string, any> | Record<string, any>[] | null; // This is from BunkaiInventory model
   resource_url: string | null;
 }
 // For /bunkai_inventory/{kata_id}
@@ -192,16 +192,10 @@ export interface BunkaiInfo {
   name: string;
   description: string | null;
   notes: string | null;
-  resources: Record<string, any> | null;
+  resources: Record<string, any> | Record<string, any>[] | null;
   resource_url: string | null;
 }
 
-export interface BunkaiInventoryResponse {
-  kata_id: number;
-  bunkai_inventory: Record<string, BunkaiInfo>;
-}
-
-// For /bunkai_dtls/{bunkai_id}
 export interface BunkaiStep {
   id_bunkaisequence: number;
   bunkai_id: number;
@@ -209,13 +203,8 @@ export interface BunkaiStep {
   description: string | null;
   notes: string | null;
   remarks: DetailedNotes[] | null;
-  resources: Record<string, any> | null;
+  resources: Record<string, any> | Record<string, any>[] | null;
   resource_url: string | null;
-}
-
-export interface BunkaiDetails {
-  bunkai_id: number;
-  bunkai_steps: Record<string, BunkaiStep>;
 }
 
 // For /finder
