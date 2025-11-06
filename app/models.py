@@ -285,6 +285,7 @@ class KihonSequence(BaseModel):
     resources: Optional[Dict[str, Any]] = None
     notes: Optional[str] = None
     resource_url: Optional[str] = None
+    looking_direction: Optional[AbsoluteDirections] = None  # New field
         
     def to_sql_values(self) -> str:
         values = [format_value(getattr(self, field)) for field in KihonSequence.model_fields]
@@ -301,7 +302,8 @@ class KihonSequence(BaseModel):
             target_hgt=row[7],
             resources=row[8],
             notes=row[9],
-            resource_url=row[10]
+            resource_url=row[10],
+            looking_direction=row[11]  # Add new field
         )
     def get_id(self) -> int:
         return self.id_sequence
@@ -317,6 +319,7 @@ class KihonTx(BaseModel):#get_kihon_tx()
     notes: Optional[str] = None
     tempo: Optional[Tempo] = None
     resource_url: Optional[str] = None
+    looking_direction: Optional[AbsoluteDirections] = None  # New field
         
     def to_sql_values(self) -> str:
         values = [format_value(getattr(self, field)) for field in KihonTx.model_fields]
@@ -330,7 +333,8 @@ class KihonTx(BaseModel):#get_kihon_tx()
             resources=row[4],
             notes=row[5],
             tempo=row[6],
-            resource_url=row[7]
+            resource_url=row[7],
+            looking_direction=row[8]  # Add new field
         )   
     def get_id(self) -> int:
         return self.id_tx
@@ -452,6 +456,7 @@ class KataSequence(BaseModel):
     hips: Optional[Hips] = None
     embusen: Optional[EmbusenPoints] = None
     facing: Optional[AbsoluteDirections] = None
+    looking_direction: Optional[AbsoluteDirections] = None  # New field
     kiai: Optional[bool] = None
     notes: Optional[str] = None
     remarks: Optional[List[DetailedNotes]] = None
@@ -470,13 +475,14 @@ class KataSequence(BaseModel):
             speed=row[4],
             side=row[5],
             hips=row[6],
-            embusen=EmbusenPoints.model_validate(row[7]._asdict()),
+            embusen=EmbusenPoints.model_validate(row[7]._asdict()) if row[7] else None,
             facing=row[8],
-            kiai=row[9],
-            notes=row[10],
-            remarks=row[11],
-            resources=row[12],
-            resource_url=row[13]
+            looking_direction=row[9],  # Add new field
+            kiai=row[10],
+            notes=row[11],
+            remarks=row[12],
+            resources=row[13],
+            resource_url=row[14]
         )
     def get_id(self) -> int:
         return self.id_sequence
@@ -489,6 +495,7 @@ class KataSequenceWaza(BaseModel):
     technic_id: int
     strikingpart_id: Optional[int] = None
     technic_target_id: Optional[int] = None
+    target_direction: Optional[AbsoluteDirections] = None  # New field
     notes: Optional[str] = None
     resources: Optional[Dict[str, Any]] = None
         
@@ -503,8 +510,9 @@ class KataSequenceWaza(BaseModel):
             technic_id=row[3],
             strikingpart_id=row[4],
             technic_target_id=row[5],
-            notes=row[6],
-            resources=row[7]
+            target_direction=row[6],  # Add new field
+            notes=row[7],
+            resources=row[8]
         )
     def get_id(self) -> int:
         return self.id_kswaza
@@ -517,7 +525,8 @@ class KataTx(BaseModel):
     tempo: Optional[Tempo] = None
     direction: Optional[Sides] = None
     intermediate_stand_id: Optional[int] = None
-    notes: Optional[str] = None
+    looking_direction: Optional[AbsoluteDirections] = None  # New field
+    notes: Optional[str] = None 
     remarks: Optional[List[DetailedNotes]] = None
     resources: Optional[Dict[str, Any]] = None
     resource_url: Optional[str] = None
@@ -525,6 +534,7 @@ class KataTx(BaseModel):
     def to_sql_values(self) -> str:
         values = [format_value(getattr(self, field)) for field in KataTx.model_fields]
         return f"({', '.join(values)})"
+    
     def from_sql_row(row: tuple) -> 'KataTx':
         return KataTx(
             id_tx=row[0],
@@ -533,15 +543,15 @@ class KataTx(BaseModel):
             tempo=row[3],
             direction=row[4],
             intermediate_stand_id=row[5],
-            notes=row[6],
+            looking_direction=row[6],  # Add new field
+            notes=row[7],
             remarks=[
                 DetailedNotes.model_validate(
                     {**t._asdict(), 'arto': t.arto._asdict()}
-                ) for t in row[7]
-            ] if row[7] else None,
-            #remarks=row[7],
-            resources=row[8],
-            resource_url=row[9]
+                ) for t in row[8]
+            ] if row[8] else None,
+            resources=row[9],
+            resource_url=row[10]
         )
     def get_id(self) -> int:
         return self.id_tx
@@ -597,6 +607,7 @@ class KataSequenceStep(BaseModel): #get_katasequence()
     guardia: Sides | None
     hips: Hips | None
     facing: AbsoluteDirections | None
+    looking_direction: AbsoluteDirections | None
     Tecniche: List[KataTechnique] = Field(alias="tecniche")
     embusen: EmbusenPoints | None
     kiai: bool | None
@@ -619,17 +630,18 @@ class KataSequenceStep(BaseModel): #get_katasequence()
             guardia=row[6],
             hips=row[7],
             facing=row[8],
-            tecniche=[KataTechnique.model_validate(t) for t in row[9]] if row[9] else [],
-            embusen=EmbusenPoints.model_validate(row[10]._asdict()) if row[10] else None,
-            kiai=row[11],
-            notes=row[12],
+            looking_direction=row[9],
+            tecniche=[KataTechnique.model_validate(t) for t in row[10]] if row[10] else [],
+            embusen=EmbusenPoints(x=row[11][0], y=row[11][1]) if row[11] else None,
+            kiai=row[12],
+            notes=row[13],
             remarks=[
                 DetailedNotes.model_validate(
                     {**t._asdict(), 'arto': t.arto._asdict()}
-                ) for t in row[13]
-            ] if row[13] else None,
-            resources= row[14],
-            resource_url=row[15]
+                ) for t in row[14]
+            ] if row[14] else None,
+            resources= row[15],
+            resource_url=row[16]
         )
     def get_id(self) -> int:
         return self.id_sequence
@@ -692,3 +704,32 @@ class BunkaiSequence(BaseModel):
         )
     def get_id(self) -> int:
         return self.id_bunkaisequence
+
+class TechnicDecomposition(BaseModel):
+    id_decomposition: int
+    technic_id: int
+    component_order: int
+    description: Optional[str] = None
+    explanations: Optional[str] = None  # Note: matches explanations not explatations
+    resources: Optional[Dict[str, Any]] = None
+    notes: Optional[str] = None
+    resource_url: Optional[str] = None
+        
+    def to_sql_values(self) -> str:
+        values = [format_value(getattr(self, field)) for field in TechnicDecomposition.model_fields]
+        return f"({', '.join(values)})"
+    
+    def from_sql_row(row: tuple) -> 'TechnicDecomposition':
+        return TechnicDecomposition(
+            id_decomposition=row[0],
+            technic_id=row[1],
+            component_order=row[2],
+            description=row[3],
+            explanations=row[4],
+            resources=row[5],
+            notes=row[6],
+            resource_url=row[7]
+        )
+    
+    def get_id(self) -> int:
+        return self.id_decomposition
