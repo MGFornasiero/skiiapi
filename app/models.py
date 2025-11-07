@@ -571,9 +571,10 @@ class KataTechnique(BaseModel): #json in tecniche di KataSequenceStep
     strikingpart_id: int | None = None
     strikingpart_name: str | None
     technic_target_id: int | None
+    target_direction: AbsoluteDirections | None
     obiettivo: str | None = Field(alias="Obiettivo", default=None)
     waza_note: str | None
-    waza_resources: List[dict] | None
+    waza_resources: dict | None
         
     def to_sql_values(self) -> str:
         values = [format_value(getattr(self, field)) for field in KataTechnique.model_fields]
@@ -588,9 +589,10 @@ class KataTechnique(BaseModel): #json in tecniche di KataSequenceStep
             strikingpart_id=row[5],
             strikingpart_name=row[6],
             technic_target_id=row[7],
-            obiettivo=row[8],
-            waza_note=row[9],
-            waza_resources=row[10]
+            target_direction=row[8],
+            obiettivo=row[9],
+            waza_note=row[10],
+            waza_resources=row[11]
         )
     def get_id(self) -> int:
         return self.id_kswaza

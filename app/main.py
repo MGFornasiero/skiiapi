@@ -220,6 +220,7 @@ def kata(kata_id: int):
                 f"SELECT id_sequence,kata_id,seq_num,stand_id,posizione,speed,guardia,hips,facing,looking_direction,tecniche,embusen,kiai,notes,remarks,resources,resource_url FROM public.get_katasequence({kata_id});"
             )
             res_cur = cur.fetchall()
+            print(res_cur)
             objs_steps = [KataSequenceStep.from_sql_row(row) for row in res_cur]
 
             cur.execute(
