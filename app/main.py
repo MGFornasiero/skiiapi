@@ -150,7 +150,7 @@ def kihon_dtls(grade_id: int , sequenza: int):
             cur.execute(q_tx)
             objs_tx = [KihonTx.from_sql_row(row) for row in cur]
             
-            cur.execute(f"SELECT get_kihonnotes({grade_id} ,{sequenza});") #da implementare nel json di ritorno
+            cur.execute(f"SELECT resources, notes FROM public.get_kihonnotes({grade_id} ,{sequenza});") #da implementare nel json di ritorno
             result_note = cur.fetchone()
             cur.execute(f"SELECT grade,gtype FROM public.get_grade({grade_id});") 
             grade_data = cur.fetchone()
@@ -166,8 +166,9 @@ def kihon_dtls(grade_id: int , sequenza: int):
     
     grade = f"{grade_data[0]}° {grade_data[1]}"
     return {"grade": grade, 
-        "grade_id": grade_id, 
-        "note": result_note[0], # vedere se funziona ancora il FE
+        "grade_id": grade_id,
+        "resources": result_note[0], # vedere se funziona ancora il FE
+        "note": result_note[1], # vedere se funziona ancora il FE
         "sequenza_n":sequenza,
         "tecniche":s_results , 
         "transactions":tx_results ,

@@ -107,6 +107,7 @@ export interface KihonTransaction {
 export interface KihonListResponse {
   grade: string;
   grade_id: number;
+  resources: Record<string, any>;
   note: string | null;
   sequenza_n: number;
   tecniche: Record<string, KihonStepInfo>;
@@ -171,8 +172,7 @@ export interface KataTransaction {
   to_sequence: number;
   tempo: Tempo | null;
   direction: Sides | null;
-  intermediate_stand_id: number | null;
-  looking_direction: AbsoluteDirections | null;  // Add new field
+  intermediate_stand_id: number | null: AbsoluteDirections | null;  // Add new field
   notes: string | null;
   remarks: DetailedNotes[] | null;
   resources: Record<string, any> | Record<string, any>[] | null;
@@ -208,6 +208,11 @@ export interface BunkaiStep {
   remarks: DetailedNotes[] | null;
   resources: Record<string, any> | Record<string, any>[] | null;
   resource_url: string | null;
+}
+
+export interface BunkaiDetailsResponse {
+  kata_id: number; // ID of the kata (or use `bunkai_id` if your endpoint returns bunkai_id)
+  bunkai_steps: Record<string, BunkaiStep>;
 }
 
 // For /finder

@@ -285,7 +285,7 @@ class KihonSequence(BaseModel):
     resources: Optional[Dict[str, Any]] = None
     notes: Optional[str] = None
     resource_url: Optional[str] = None
-    looking_direction: Optional[AbsoluteDirections] = None  # New field
+    #looking_direction: Optional[AbsoluteDirections] = None  # New field
         
     def to_sql_values(self) -> str:
         values = [format_value(getattr(self, field)) for field in KihonSequence.model_fields]
@@ -303,7 +303,7 @@ class KihonSequence(BaseModel):
             resources=row[8],
             notes=row[9],
             resource_url=row[10],
-            looking_direction=row[11]  # Add new field
+            #looking_direction=row[11]  # Add new field
         )
     def get_id(self) -> int:
         return self.id_sequence
@@ -319,7 +319,7 @@ class KihonTx(BaseModel):#get_kihon_tx()
     notes: Optional[str] = None
     tempo: Optional[Tempo] = None
     resource_url: Optional[str] = None
-    looking_direction: Optional[AbsoluteDirections] = None  # New field
+    #looking_direction: Optional[AbsoluteDirections] = None  # New field
         
     def to_sql_values(self) -> str:
         values = [format_value(getattr(self, field)) for field in KihonTx.model_fields]
@@ -334,7 +334,7 @@ class KihonTx(BaseModel):#get_kihon_tx()
             notes=row[5],
             tempo=row[6],
             resource_url=row[7],
-            looking_direction=row[8]  # Add new field
+            #looking_direction=row[8]  # Add new field
         )   
     def get_id(self) -> int:
         return self.id_tx
